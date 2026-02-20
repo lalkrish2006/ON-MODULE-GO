@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student OD Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --light-bg: #f8f9fa;
+            --dark-header: #343a40;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark-header);
+            padding-bottom: 60px; /* Space for mobile scroll */
+        }
+
+        .dashboard-content {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding-top: 20px;
+        }
+
+        /* --- NAVBAR RESPONSIVENESS --- */
+        .top-navbar {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 15px 0;
+            margin-bottom: 25px;
+        }
+
+        .header-title {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+
+        /* --- TABLE STYLES --- */
+        .table-card {
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .table thead th {
+            text-align: center;
+            vertical-align: middle;
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            padding: 12px 8px;
+            font-size: 0.9rem;
+            border-bottom: none;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 15px 10px;
+            font-size: 0.88rem;
+        }
+
+        /* --- BADGES & BUTTONS --- */
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.5em 0.8em;
+            border-radius: 0.5rem;
+            letter-spacing: 0.3px;
+        }
+
+        .view-team-btn {
+            border-radius: 50rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.4rem 0.8rem;
+        }
+
+        /* --- PROFILE PILL STYLES --- */
+        .profile-expand-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            height: 42px;
+            max-width: 42px;
+            border-radius: 50px;
+            overflow: hidden;
+            cursor: default;
+            transition: max-width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);
+            user-select: none;
+        }
+
+        .profile-expand-wrapper:hover {
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3);
+        }
+
+        .profile-initial {
+            min-width: 42px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+        }
+
+        .profile-full-name {
+            white-space: nowrap;
+            padding-right: 20px;
+            padding-left: 5px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+        }
+
+        .profile-expand-wrapper:hover .profile-full-name {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* --- MOBILE RESPONSIVE TRANSFORMATIONS --- */
+        @media (max-width: 991px) {
+            /* 1. Navbar Adjustments */
+            .header-title {
+                font-size: 1.25rem;
+                margin-bottom: 10px;
+            }
+            
+            /* 2. Table to Card Transformation */
+            .table-card {
+                background-color: transparent;
+                border: none;
+                box-shadow: none;
+            }
+            
+            .table thead {
+                display: none; /* Hide header on mobile */
+            }
+
+            .table tbody, .table tr, .table td {
+                display: block;
+                width: 100%;
+            }
+
+            .table tr {
+                margin-bottom: 20px;
+                background-color: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                border: 1px solid #dee2e6;
+                overflow: hidden;
+            }
+
+            .table td {
+                text-align: right; /* Value on right */
+                padding: 12px 15px;
+                position: relative;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #f0f0f0;
+                min-height: 50px;
+            }
+
+            /* Add labels using data-label attribute */
+            .table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #6c757d;
+                text-align: left;
+                margin-right: auto;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                letter-spacing: 0.5px;
+            }
+
+            .table td:last-child {
+                border-bottom: none;
+                justify-content: center; /* Center buttons on last row */
+                padding: 15px;
+                background-color: #fcfcfc;
+            }
+            
+            /* Hide the "ID" label for cleaner look on mobile, maybe make ID stand out */
+            .table td[data-label="ID"] {
+                background-color: var(--primary-color);
+                color: white;
+                font-weight: bold;
+                justify-content: center;
+            }
+            .table td[data-label="ID"]::before {
+                display: none;
+            }
+            .table td[data-label="ID"]::after {
+                content: "Application #" attr(data-val); /* Helper for ID */
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="top-navbar sticky-top">
+        <div class="container dashboard-content">
+            <div class="d-flex flex-wrap justify-content-center justify-content-md-between align-items-center gap-3">
+                <h3 class="mb-0 header-title text-center text-md-start">
+                    <i class="bi bi-person-fill-gear me-2"></i> <span class="d-none d-sm-inline">Student</span> OD Dashboard
+                </h3>
+                
+                <div class="d-flex align-items-center gap-2 gap-md-3">
+                    <a href="/student/apply" class="btn btn-primary fw-bold shadow-sm rounded-pill btn-sm btn-md-lg">
+                        <i class="bi bi-plus-circle me-1"></i> <span class="d-none d-sm-inline">New Request</span><span class="d-inline d-sm-none">New</span>
+                    </a>
+
+                    <div class="profile-expand-wrapper">
+                        <div class="profile-initial">
+                            {{ if .User.name }}{{ printf "%.1s" .User.name }}{{ else }}U{{ end }}
+                        </div>
+                        <div class="profile-full-name">
+                            {{ .User.name }}
+                        </div>
+                    </div>
+
+                    <a href="/logout" class="btn btn-outline-danger rounded-pill btn-sm btn-md-lg">
+                        <i class="bi bi-box-arrow-right"></i> <span class="d-none d-sm-inline">Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-content container-fluid">
+        {{ if .FlashSuccess }}
+            <div class="alert alert-success alert-dismissible fade show text-center rounded-3 shadow-sm" role="alert">
+                <strong>Success!</strong> {{ .FlashSuccess }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {{ end }}
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="text-dark fw-bold mb-0">My History</h4>
+        </div>
+
+        {{ if not .ODs }}
+            <div class="alert alert-info text-center py-4 rounded-3 border-0 shadow-sm">
+                <i class="bi bi-info-circle me-2"></i> You have no OD requests yet.
+            </div>
+        {{ else }}
+            <div class="table-card">
+                <div class="table-responsive-lg"> <table class="table table-striped table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Purpose</th>
+                                <th>Dates</th>
+                                <th>College / Event</th>
+                                <th>Lab Name</th>
+                                <th>Status</th>
+                                <th>Bonafide</th>
+                                <th>Team</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .ODs }}
+                                <tr>
+                                    <td class="text-center text-muted" data-label="ID" data-val="{{ .ID }}">
+                                        {{ .ID }}
+                                    </td>
+                                    
+                                    <td class="text-center" data-label="Type">
+                                        <span class="badge bg-dark">{{ .ODType }}</span>
+                                    </td>
+                                    
+                                    <td class="text-start" data-label="Purpose">
+                                        <div class="text-truncate" style="max-width: 200px; display:inline-block; vertical-align:middle;">
+                                            {{ .Purpose }}
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="text-center" data-label="Dates">
+                                        {{ .DateStr }}
+                                    </td>
+                                    
+                                    <td class="text-start" data-label="College / Event">
+                                        {{ if eq .ODType "internal" }}
+                                            <span class="text-muted fw-bold">Internal / N/A</span>
+                                        {{ else }}
+                                            {{ if .CollegeName.Valid }}
+                                                <div class="d-flex flex-column text-end text-md-start"> <span class="fw-bold">{{ .CollegeName.String }}</span>
+                                                    <span class="detail-text small">{{ .EventName.String }}</span>
+                                                </div>
+                                            {{ else }}
+                                                 <span class="text-muted fst-italic">Internal / N/A</span>
+                                            {{ end }}
+                                        {{ end }}
+                                    </td>
+                                    
+                                    <td class="text-center" data-label="Lab Name">
+                                        {{ if eq .LabRequired 1 }}
+                                            {{ if .LabName.Valid }}{{ .LabName.String }}{{ else }}-{{ end }}
+                                        {{ else }}
+                                            -
+                                        {{ end }}
+                                    </td>
+                                    
+                                    <td class="text-center" data-label="Status">
+                                        <span class="badge {{ .BadgeClass }}">{{ .DisplayText }}</span>
+                                    </td>
+                                    
+                                    <td class="text-center" data-label="Bonafide">
+                                        {{ if eq .RequestBonafide 1 }}
+                                            <span class="badge bg-info">Yes</span>
+                                        {{ else }}
+                                            <span class="badge bg-light text-secondary">No</span>
+                                        {{ end }}
+                                    </td>
+                                    
+                                    <td data-label="Team Members">
+                                        {{ if .IsIndividual }}
+                                            <span class="text-muted fst-italic">Individual</span>
+                                        {{ else }}
+                                            <button type="button" class="btn btn-outline-primary view-team-btn w-100 w-md-auto"
+                                                data-team='{{ .TeamMembersJSON }}'
+                                                data-bs-toggle="modal" data-bs-target="#teamModal">
+                                                <i class="bi bi-people-fill"></i> View ({{ len .TeamMembers }})
+                                            </button>
+                                        {{ end }}
+                                    </td>
+                                </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{ end }}
+    </div>
+
+    <div class="modal fade" id="teamModal" tabindex="-1" aria-labelledby="teamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="teamModalLabel"><i class="bi bi-people me-2"></i> Team Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0" id="teamModalBody">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.view-team-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const teamData = JSON.parse(btn.dataset.team);
+                let tableHtml = `
+                    <div class="table-responsive">
+                    <table class="table table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Reg No</th>
+                                <th>Year</th>
+                                <th>Dept</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                teamData.forEach(member => {
+                    tableHtml += `
+                        <tr>
+                            <td class="fw-bold">${member.member_name}</td>
+                            <td>${member.member_regno}</td>
+                            <td>${member.member_year}</td>
+                            <td>${member.member_department}</td>
+                        </tr>
+                    `;
+                });
+                tableHtml += "</tbody></table></div>";
+                document.getElementById("teamModalBody").innerHTML = tableHtml;
+            });
+        });
+    </script>
+</body>
+</html>

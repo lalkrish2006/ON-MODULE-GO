@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOD Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --danger-color: #dc3545;
+            --success-color: #198754;
+            --secondary-color: #6c757d;
+            --light-bg: #f8f9fa;
+            --white: #ffffff;
+            --dark-text: #212529;
+        }
+
+        body {
+            background: var(--light-bg);
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+            padding-bottom: 60px;
+        }
+
+        .container-fluid {
+            max-width: 1600px;
+        }
+
+        .dashboard-header {
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* --- DESKTOP TABLE STYLES --- */
+        .table th,
+        .table td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 0.75rem 0.5rem;
+            white-space: nowrap;
+        }
+
+        .table thead th {
+            background: var(--primary-color);
+            color: var(--white);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .table td.detail-group {
+            text-align: left;
+            white-space: normal;
+            min-width: 200px;
+        }
+
+        /* --- PROFILE PILL STYLES --- */
+        .profile-expand-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            height: 42px;
+            max-width: 42px;
+            border-radius: 50px;
+            overflow: hidden;
+            cursor: default;
+            transition: max-width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            user-select: none;
+        }
+
+        .profile-expand-wrapper:hover {
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .profile-initial {
+            min-width: 42px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+        }
+
+        .profile-full-name {
+            white-space: nowrap;
+            padding-right: 20px;
+            padding-left: 5px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(-15px);
+            transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+        }
+
+        .profile-expand-wrapper:hover .profile-full-name {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* --- ACTION BUTTON ANIMATIONS --- */
+        .action-wrapper {
+            position: relative;
+            min-width: 150px;
+        }
+
+        .initial-buttons,
+        .confirm-buttons {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-confirm-action {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(13, 110, 253, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+        }
+
+        .btn-confirm-action.btn-danger {
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        /* --- 📱 RESPONSIVE MOBILE VIEW --- */
+        @media screen and (max-width: 992px) {
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .dashboard-header .d-flex {
+                width: 100%;
+                justify-content: flex-end;
+                gap: 15px;
+                margin-top: 10px;
+            }
+
+            .table thead { display: none; }
+            .table tbody, .table tr, .table td { display: block; width: 100%; }
+            .table tr {
+                margin-bottom: 1.5rem;
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                overflow: hidden;
+            }
+
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                text-align: right;
+                padding: 10px 15px;
+                position: relative;
+                border-bottom: 1px solid #f0f0f0;
+                white-space: normal;
+                min-height: auto;
+            }
+
+            .table td:last-child { border-bottom: 0; }
+
+            .table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                text-align: left;
+                color: #555;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                min-width: 110px;
+                margin-right: 15px;
+            }
+
+            .table td[data-label="Purpose"] { flex-direction: column; align-items: flex-start; text-align: left; padding: 15px; }
+            .table td[data-label="Purpose"]::before { margin-bottom: 5px; }
+            .table td.detail-group { text-align: left; }
+
+            .table td[data-label="Action"] { flex-direction: column; align-items: flex-start; padding: 15px; }
+            .table td[data-label="Action"]::before { margin-bottom: 10px; }
+            .action-wrapper { width: 100%; }
+
+            .table td[data-label="OD ID"] {
+                background-color: #f8f9fa;
+                border-bottom: 1px solid #e9ecef;
+                justify-content: flex-start;
+                gap: 10px;
+                font-weight: bold;
+            }
+            .table td[data-label="OD ID"]::before { min-width: auto; margin-right: 5px; }
+
+            .table td[data-label="Team"] { justify-content: center; }
+            .table td[data-label="Team"]::before { display: none; }
+            .view-team-btn { width: 100%; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid py-4">
+
+        <header class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <h2 class="mb-0 fs-4"><i class="bi bi-person-video3 me-2"></i> HOD Dashboard <span class="text-primary fs-5">({{ .User.department }})</span></h2>
+
+            <div class="d-flex align-items-center">
+                {{if .IsAdmin}}
+                    <a href="/admin/dashboard" class="btn btn-warning btn-sm fw-bold me-3">Edit User Profiles</a>
+                {{end}}
+                <div class="profile-expand-wrapper me-3">
+                    <div class="profile-initial">
+                        {{ printf "%.1s" .User.name }}
+                    </div>
+                    <div class="profile-full-name">
+                        {{ .User.name }}
+                    </div>
+                </div>
+
+                <a href="/logout" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-box-arrow-right me-1"></i> Logout</a>
+            </div>
+        </header>
+        
+        {{ if .FlashSuccess }}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ .FlashSuccess }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {{ end }}
+
+        <div class="card mb-4">
+            <div class="card-body p-3">
+                <form method="GET" action="" class="row g-3 align-items-end">
+                    <div class="col-12 col-md-7">
+                        <label class="form-label small fw-bold text-muted">Search</label>
+                        <input type="text" class="form-control" name="search" placeholder="Search ID, Name, Reg No..." value="{{ .Search }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted">Month</label>
+                        <input type="month" class="form-control" name="month" value="{{ .MonthFilter }}">
+                    </div>
+                    <div class="col-6 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel-fill me-1"></i> Filter</button>
+                        <a href="?" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg"></i></a>
+                    </div>
+                    {{ if eq .User.role "admin" }}
+                        <input type="hidden" name="department" value="{{ .User.department }}">
+                    {{ end }}
+                </form>
+            </div>
+        </div>
+        
+        <!-- PENDING -->
+        <h4 class="mb-3 text-secondary">Pending Approvals</h4>
+        {{ if not .PendingODs }}
+            <div class="alert alert-warning shadow-sm"><i class="bi bi-search me-2"></i> No applications found.</div>
+        {{ else }}
+            <div class="card table-card mb-5">
+                <div class="table-responsive-lg">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>OD ID</th>
+                                <th>Student</th>
+                                <th>Reg No</th>
+                                <th>Year</th>
+                                <th>Dept</th>
+                                <th>OD Type</th>
+                                <th>Dates</th>
+                                <th>Purpose</th>
+                                <th>Team</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .PendingODs }}
+                                <tr>
+                                    <td data-label="OD ID"><span class="badge bg-dark">{{ .ID }}</span></td>
+                                    <td data-label="Student" class="fw-bold">{{ .StudentName }}</td>
+                                    <td data-label="Reg No">{{ .RegisterNo }}</td>
+                                    <td data-label="Year">{{ .Year }}</td>
+                                    <td data-label="Department">{{ .Department }}</td>
+                                    <td data-label="OD Type">
+                                        <span class="badge {{ if eq .ODType "Internal" }}bg-info text-dark{{ else }}bg-primary{{ end }}">
+                                            {{ .ODType }}
+                                        </span>
+                                    </td>
+                                    <td data-label="Dates" class="small">
+                                         {{ .DateStr }}
+                                    </td>
+                                    <td data-label="Purpose" class="detail-group">
+                                        <div class="fw-semibold">{{ .Purpose }}</div>
+                                        {{ if .CollegeName }}
+                                            <div class="small text-muted"><i class="bi bi-building me-1"></i> {{ .CollegeName }}</div>
+                                        {{ end }}
+                                    </td>
+                                    
+                                    <td data-label="Team">
+                                        {{ if .TeamMembers }}
+                                            <button class="btn btn-outline-primary btn-sm view-team-btn w-100"
+                                                data-team='{{ .TeamJSON }}'
+                                                data-bs-toggle="modal" data-bs-target="#teamModal">
+                                                <i class="bi bi-people-fill"></i> View
+                                            </button>
+                                        {{ else }}
+                                            <span class="text-muted small">Individual</span>
+                                        {{ end }}
+                                    </td>
+
+                                    <td data-label="Action">
+                                        <form action="/hod/action" method="POST" class="action-form w-100">
+                                            <input type="hidden" name="od_id" value="{{ .ID }}">
+                                            <input type="hidden" name="action" value="" class="action-input">
+
+                                            <div class="action-wrapper">
+                                                <div class="initial-buttons d-flex flex-column gap-2">
+                                                    <button type="button" class="btn btn-success btn-sm w-100 trigger-btn" data-action="accept">
+                                                        <i class="bi bi-check-lg me-1"></i> Approve
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm w-100 trigger-btn" data-action="reject">
+                                                        <i class="bi bi-x-lg me-1"></i> Reject
+                                                    </button>
+                                                </div>
+
+                                                <div class="confirm-buttons d-none flex-column gap-2">
+                                                    <button type="submit" class="btn btn-sm w-100 fw-bold btn-confirm-action">
+                                                        Confirm?
+                                                    </button>
+                                                    <button type="button" class="btn btn-secondary btn-sm w-100 btn-cancel">
+                                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{ end }}
+        
+        <!-- HISTORY -->
+        <h4 class="mb-3 text-secondary">History</h4>
+        {{ if not .HistoryODs }}
+            <div class="alert alert-light">No history available.</div>
+        {{ else }}
+            <div class="card table-card">
+                <div class="table-responsive-lg">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>OD ID</th>
+                                <th>Student</th>
+                                <th>Reg No</th>
+                                <th>OD Type</th>
+                                <th>Purpose</th>
+                                <th>Dates</th>
+                                <th>Status</th>
+                                <th>Team</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .HistoryODs }}
+                                <tr>
+                                    <td data-label="OD ID"><span class="badge bg-dark">{{ .ID }}</span></td>
+                                    <td data-label="Student">{{ .StudentName }}</td>
+                                    <td data-label="Reg No">{{ .RegisterNo }}</td>
+                                    <td data-label="OD Type">{{ .ODType }}</td>
+                                    <td data-label="Purpose">{{ .Purpose }}</td>
+                                    <td data-label="Dates" class="small">{{ .DateStr }}</td>
+                                    <td data-label="Status">
+                                        <span class="badge {{ .BadgeClass }}">{{ .Status }}</span>
+                                    </td>
+                                    <td data-label="Team">
+                                        {{ if .TeamMembers }}
+                                            <button class="btn btn-outline-primary btn-sm view-team-btn w-100"
+                                                data-team='{{ .TeamJSON }}'
+                                                data-bs-toggle="modal" data-bs-target="#teamModal">
+                                                View
+                                            </button>
+                                        {{ else }}
+                                            <span class="text-muted small">Individual</span>
+                                        {{ end }}
+                                    </td>
+                                </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{ end }}
+
+    </div>
+
+    <div class="modal fade" id="teamModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-people-fill me-2"></i> Team Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="teamModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ✅ 1. Main Table "Swap & Confirm" Logic
+        document.addEventListener('click', e => {
+            if (e.target.closest('.trigger-btn')) {
+                const btn = e.target.closest('.trigger-btn');
+                const form = btn.closest('.action-form');
+                const action = btn.dataset.action;
+
+                const initialDiv = form.querySelector('.initial-buttons');
+                const confirmDiv = form.querySelector('.confirm-buttons');
+                const confirmBtn = form.querySelector('.btn-confirm-action');
+                const input = form.querySelector('.action-input');
+
+                input.value = action;
+
+                confirmBtn.className = 'btn btn-sm w-100 fw-bold btn-confirm-action';
+                if (action === 'accept') {
+                    confirmBtn.classList.add('btn-success');
+                    confirmBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Confirm Approve';
+                } else {
+                    confirmBtn.classList.add('btn-danger');
+                    confirmBtn.innerHTML = '<i class="bi bi-exclamation-octagon-fill me-1"></i> Confirm Reject';
+                }
+
+                initialDiv.classList.add('d-none');
+                confirmDiv.classList.remove('d-none');
+            }
+
+            if (e.target.closest('.btn-cancel')) {
+                const btn = e.target.closest('.btn-cancel');
+                const form = btn.closest('.action-form');
+                form.querySelector('.confirm-buttons').classList.add('d-none');
+                form.querySelector('.initial-buttons').classList.remove('d-none');
+            }
+        });
+
+        // ✅ 2. Modal Population (View Team)
+        document.addEventListener('click', e => {
+            if (e.target.classList.contains('view-team-btn')) {
+                const teamData = JSON.parse(e.target.dataset.team);
+                let html = `
+                <div class="table-responsive">
+                <table class="table table-bordered table-sm text-center table-striped align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr><th>Name</th><th>Reg No</th><th>Year</th><th>Dept</th><th>Sec</th><th>Mentor</th><th>Status</th></tr>
+                    </thead><tbody>`;
+
+                teamData.forEach(m => {
+                    let statusCell = '';
+                    let mStatus = m.mentor_status || 'Pending'; // Default to Pending if empty
+                    
+                    if (mStatus === 'Rejected') {
+                        // Form for individual override
+                        statusCell = `
+                            <form method="post" action="/hod/action" class="hod-member-form d-flex flex-column gap-1">
+                                <input type="hidden" name="member_id" value="${m.id}">
+                                <input type="hidden" name="od_id" value="${m.od_id || ''}"> <!-- Ensure OD ID is passed if available in struct, otherwise handled by context? Go struct doesn't have ODID explicitly in HODTeamMember but usually it's passed via parent or we need to add it. -->
+                                <!-- Wait, HODTeamMember struct in Go doesn't have ODID. We need to pass it from the button data-team or just rely on member_id if unique? 
+                                     The Go handler HODAction uses member_id to update od_team_members. It doesn't use od_id for member update case. 
+                                     But let's keep the field in case. -->
+                                <input type="hidden" name="action" value="">
+                                <button type="submit" class="btn btn-success btn-sm" onclick="this.form.action.value='accept'">Accept</button>
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="this.form.action.value='reject'">Reject</button>
+                            </form>`;
+                    } else {
+                        let badge = mStatus.includes('Accepted') ? 'success' : (mStatus.includes('Rejected') ? 'danger' : 'secondary');
+                        statusCell = `<span class="badge bg-${badge}">${mStatus}</span>`;
+                    }
+                    html += `<tr><td>${m.name}</td><td>${m.reg_no}</td><td>${m.year}</td><td>${m.dept}</td><td>${m.section}</td><td>${m.mentor}</td><td>${statusCell}</td></tr>`;
+                });
+                html += "</tbody></table></div>";
+                document.getElementById("teamModalBody").innerHTML = html;
+            }
+        });
+    </script>
+</body>
+</html>

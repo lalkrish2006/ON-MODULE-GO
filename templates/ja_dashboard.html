@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JA Dashboard</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary-color: #6f42c1; /* JA Theme (Indigo) */
+            --primary-light: #e0cffc;
+            --bg-light: #f8f9fa;
+            --text-dark: #2c3e50;
+            --card-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        /* Navbar & Profile */
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color) !important;
+            font-size: 1.5rem;
+        }
+
+        .profile-pill {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 5px 15px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        .profile-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        .profile-icon {
+            width: 35px;
+            height: 35px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        /* Cards */
+        .dashboard-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            background: white;
+            transition: transform 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+        }
+
+        /* Table Styles */
+        .table-custom {
+            margin-bottom: 0;
+        }
+        .table-custom thead th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px;
+        }
+        .table-custom tbody td {
+            padding: 15px;
+            vertical-align: middle;
+            border-bottom: 1px solid #eee;
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* Responsive Mobile View */
+        @media (max-width: 991px) {
+            .table-responsive-stack thead {
+                display: none;
+            }
+            .table-responsive-stack tr {
+                display: block;
+                margin-bottom: 20px;
+                background: white;
+                border-radius: 15px;
+                box-shadow: var(--card-shadow);
+                padding: 15px;
+            }
+            .table-responsive-stack td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: none;
+                padding: 10px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .table-responsive-stack td:last-child {
+                border-bottom: none;
+            }
+            .table-responsive-stack td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #666;
+                margin-right: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light py-3 mb-4">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="#"><i class="bi bi-person-workspace me-2"></i>JA Dashboard</a>
+            
+            <div class="d-flex align-items-center gap-3">
+                <div class="profile-pill d-none d-md-flex">
+                    <div class="profile-icon">
+                        {{if .User.name}}{{slice .User.name 0 1}}{{else}}J{{end}}
+                    </div>
+                    <div>
+                        <div class="fw-bold small">{{.User.name}}</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">JA Admin</div>
+                    </div>
+                </div>
+                <a href="/logout" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                    <i class="bi bi-box-arrow-right me-1"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 pb-5">
+        
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <form method="GET" action="/ja/dashboard" class="row g-3 align-items-end" id="filterForm">
+                <div class="col-md-5">
+                    <label class="form-label text-muted small fw-bold">Search</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0 bg-light" placeholder="Search ID, Name, Reg No..." value="{{.Search}}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small fw-bold">Month</label>
+                    <input type="month" name="month" class="form-control bg-light" value="{{.MonthFilter}}">
+                </div>
+                
+                <input type="hidden" name="export" id="exportValue" value="">
+
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" id="filterBtn" class="btn btn-primary w-100 fw-medium" style="background-color: var(--primary-color); border: none;">
+                        <i class="bi bi-funnel-fill me-1"></i> Filter
+                    </button>
+                    <a href="/ja/dashboard" class="btn btn-light w-100 fw-medium border">
+                        <i class="bi bi-x-lg me-1"></i> Clear
+                    </a>
+                    {{if .Applications}}
+                    <button type="submit" id="downloadBtn" class="btn btn-success w-100 fw-medium">
+                        <i class="bi bi-download me-1"></i> CSV
+                    </button>
+                    {{end}}
+                </div>
+            </form>
+        </div>
+
+        <!-- OD Applications Table -->
+        {{if .Applications}}
+        <div class="card dashboard-card overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-custom table-hover table-responsive-stack align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Reg No</th>
+                            <th>Name</th>
+                            <th>Year</th>
+                            <th>Dept</th>
+                            <th>Section</th>
+                            <th>Type</th>
+                            <th>Purpose / Details</th>
+                            <th>Dates</th>
+                            <th>Status</th>
+                            <th>Bonafide</th>
+                            <th>Team</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Applications}}
+                        <tr>
+                            <td data-label="ID">
+                                <span class="fw-bold text-muted">#{{.ID}}</span>
+                            </td>
+                            <td data-label="Reg No" class="font-monospace small">{{.RegisterNo}}</td>
+                            <td data-label="Name" class="fw-bold">{{.StudentName}}</td>
+                            <td data-label="Year">{{.Year}}</td>
+                            <td data-label="Dept">{{.Department}}</td>
+                            <td data-label="Section">{{.Section}}</td>
+                            <td data-label="Type">
+                                <span class="badge {{if eq .ODType "internal"}}bg-secondary{{else}}bg-primary{{end}} rounded-pill fw-normal px-3 text-capitalize">
+                                    {{.ODType}}
+                                </span>
+                            </td>
+                            <td data-label="Purpose">
+                                <div class="fw-medium text-dark">{{.Purpose}}</div>
+                                {{ if eq .ODType "external" }}
+                                {{if .CollegeName.Valid}}
+                                <div class="small text-muted mt-1">
+                                    <i class="bi bi-building me-1"></i>{{.CollegeName.String}}
+                                    {{if .EventName.Valid}} • {{.EventName.String}}{{end}}
+                                </div>
+                                {{end}}
+                                {{end}}
+                            </td>
+                            <td data-label="Dates" class="small fw-medium text-secondary">
+                                {{.DateStr}}
+                            </td>
+                            <td data-label="Status">
+                                <span class="badge {{.BadgeClass}} status-badge">
+                                    {{.DisplayStatus}}
+                                </span>
+                            </td>
+                            <td data-label="Bonafide">
+                                <span class="badge {{if .RequestBonafide}}bg-info text-dark{{else}}bg-light text-muted border{{end}} rounded-pill">
+                                    {{if .RequestBonafide}}Required{{else}}No{{end}}
+                                </span>
+                            </td>
+                            <td data-label="Team">
+                                {{if .IsIndividual}}
+                                <span class="text-muted small"><i class="bi bi-person me-1"></i>Individual</span>
+                                {{else}}
+                                <button class="btn btn-sm btn-outline-primary rounded-pill view-team-btn" 
+                                        data-team='{{.TeamJSON}}'
+                                        data-bs-toggle="modal" data-bs-target="#teamModal">
+                                    <i class="bi bi-people-fill me-1"></i> View Team
+                                </button>
+                                {{end}}
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{else}}
+        <div class="text-center py-5">
+            <img src="https://cdni.iconscout.com/illustration/premium/thumb/no-data-found-8867280-7265556.png" alt="No Data" style="max-width: 200px; opacity: 0.7;">
+            <h5 class="mt-3 text-muted">No Applications Found</h5>
+            <p class="text-secondary small">Try adjusting your search filters.</p>
+        </div>
+        {{end}}
+
+    </div>
+
+    <!-- Team Modal -->
+    <div class="modal fade" id="teamModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header text-white" style="background-color: var(--primary-color);">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-people-fill me-2"></i>Team Members</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0 text-center">
+                            <thead class="bg-light text-secondary">
+                                <tr>
+                                    <th class="py-3">Name</th>
+                                    <th class="py-3">Reg No</th>
+                                    <th class="py-3">Dept</th>
+                                    <th class="py-3">Year</th>
+                                    <th class="py-3">Section</th>
+                                    <th class="py-3">Mentor Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teamModalBody">
+                                <!-- JS will populate this -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Team Modal Logic
+        document.querySelectorAll('.view-team-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const teamData = JSON.parse(this.getAttribute('data-team'));
+                const tbody = document.getElementById('teamModalBody');
+                tbody.innerHTML = ''; // Clear previous
+
+                teamData.forEach(member => {
+                    let badgeClass = 'bg-secondary';
+                    let status = member.mentor_status ? member.mentor_status.toLowerCase() : '';
+                    
+                    if(status.includes('accepted')) badgeClass = 'bg-success';
+                    else if(status.includes('rejected')) badgeClass = 'bg-danger';
+                    else if(status ===('pending')) badgeClass = 'bg-warning text-dark';
+
+                    const row = `
+                        <tr>
+                            <td class="fw-bold text-dark">${member.member_name}</td>
+                            <td class="font-monospace small text-muted">${member.member_regno}</td>
+                            <td>${member.member_department}</td>
+                            <td>${member.member_year}</td>
+                            <td>${member.member_section}</td>
+                            <td><span class="badge ${badgeClass} rounded-pill px-3">${member.mentor_status || 'Pending'}</span></td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            });
+        });
+
+        // Export Logic
+        const filterForm = document.getElementById('filterForm');
+        if (filterForm) {
+            const exportValueInput = document.getElementById('exportValue');
+            const filterBtn = document.getElementById('filterBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            if (filterBtn) {
+                filterBtn.addEventListener('click', () => { exportValueInput.value = ''; });
+            }
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', () => { exportValueInput.value = 'csv'; });
+            }
+        }
+    </script>
+
+</body>
+</html>

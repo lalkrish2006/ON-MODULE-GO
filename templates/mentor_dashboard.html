@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentor OD Review Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #1e88e5;
+            --light-bg: #f4f7f9;
+            --dark-text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+            padding-bottom: 60px;
+        }
+
+        .container-fluid {
+            max-width: 1400px;
+        }
+
+        .dashboard-header {
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            margin-bottom: 20px;
+        }
+
+        /* Table Styles */
+        .table-card {
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .table thead th {
+            text-align: center;
+            vertical-align: middle;
+            background: var(--primary-color) !important;
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 10px 8px;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            text-align: center;
+            padding: 12px 8px;
+            font-size: 0.85rem;
+        }
+
+        /* Badges & Buttons */
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.4em 0.8em;
+            border-radius: 50rem;
+            font-weight: 600;
+            min-width: 80px;
+            text-transform: uppercase;
+        }
+
+        .badge.bg-pending {
+            background-color: #ffb300 !important;
+            color: #333 !important;
+        }
+
+        .badge.bg-accepted {
+            background-color: #43a047 !important;
+        }
+
+        .badge.bg-rejected {
+            background-color: #e53935 !important;
+        }
+
+        .badge.bg-reviewed {
+            background-color: #03a9f4 !important;
+        }
+
+        .badge.bg-secondary {
+            background-color: #b0bec5 !important;
+        }
+
+        .btn-action {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 50rem;
+            font-weight: 600;
+            min-width: 80px;
+            transition: all 0.2s;
+        }
+
+        .view-more-btn {
+            font-size: 0.8rem;
+            color: #1e88e5;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .table-mentor-row {
+            background-color: #e6f7ff !important;
+            font-weight: 600;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        /* --- PROFILE PILL STYLES (NEW) --- */
+        .profile-expand-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            height: 42px;
+            max-width: 42px;
+            border-radius: 50px;
+            overflow: hidden;
+            cursor: default;
+            transition: max-width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            user-select: none;
+            /* No margin right here to keep it tight with logout if needed, controlled by parent gap */
+        }
+
+        .profile-expand-wrapper:hover {
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .profile-initial {
+            min-width: 42px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+             padding-left: 10px; /* Adjustment for centering */
+        }
+
+        .profile-full-name {
+            white-space: nowrap;
+            padding-right: 20px;
+            padding-left: 5px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(-15px);
+            transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+        }
+
+        .profile-expand-wrapper:hover .profile-full-name {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* --- RESPONSIVE MOBILE VIEW (Fixed Alignment) --- */
+        @media (max-width: 991px) {
+
+            /* Header Stack - FIXED ALIGNMENT */
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            /* Changed justify-content to flex-end and added gap to keep profile and logout together */
+            .dashboard-header .d-flex {
+                width: 100%;
+                justify-content: flex-end;
+                gap: 15px;
+                margin-top: 10px;
+            }
+
+            .table-card {
+                background: transparent;
+                box-shadow: none;
+                border: none;
+            }
+
+            .table thead {
+                display: none;
+            }
+
+            .table,
+            .table tbody,
+            .table tr,
+            .table td {
+                display: block;
+                width: 100%;
+            }
+
+            .table tr {
+                background: #fff;
+                margin-bottom: 20px;
+                border-radius: 12px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+                border: 1px solid #dee2e6;
+                padding: 15px;
+                position: relative;
+            }
+
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                text-align: right;
+                padding: 10px 0;
+                border-bottom: 1px solid #f0f0f0;
+                min-height: auto;
+            }
+
+            .table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                color: #6c757d;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                text-align: left;
+                min-width: 120px;
+                margin-right: 15px;
+            }
+
+            .table td[data-label="Purpose"] {
+                flex-direction: column;
+                align-items: flex-start;
+                text-align: left;
+            }
+
+            .table td[data-label="Purpose"]::before {
+                margin-bottom: 5px;
+            }
+
+            .detail-group {
+                text-align: left !important;
+                width: 100%;
+            }
+
+            .table td[data-label="Action"] {
+                flex-direction: column;
+                align-items: flex-start;
+                border-bottom: none;
+            }
+
+            .table td[data-label="Action"]::before {
+                margin-bottom: 8px;
+            }
+
+            .action-form {
+                width: 100%;
+                justify-content: flex-start !important;
+                gap: 10px;
+            }
+
+            .table td:last-child {
+                border-top: 1px solid #eee;
+                margin-top: 10px;
+                padding-top: 15px;
+                padding-bottom: 0;
+                border-bottom: none;
+                display: block;
+            }
+
+            .table td:last-child::before {
+                display: none;
+            }
+
+            .table td[data-label="OD ID"] {
+                background-color: #f8f9fa;
+                margin: -15px -15px 10px -15px;
+                padding: 10px 15px;
+                border-bottom: 1px solid #e9ecef;
+                border-radius: 12px 12px 0 0;
+                justify-content: flex-start;
+                gap: 10px;
+            }
+
+            .table td[data-label="OD ID"]::before {
+                min-width: auto;
+                margin-right: 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid py-4">
+        <header class="dashboard-header d-flex justify-content-between align-items-center mb-4 pt-3">
+            <h2 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Mentor Review</h2>
+            <div class="d-flex align-items-center">
+                <div class="profile-expand-wrapper">
+                    <div class="profile-initial">
+                        {{ printf "%.1s" .User.name }}
+                    </div>
+                    <div class="profile-full-name">
+                        {{ .User.name }}
+                    </div>
+                </div>
+
+                <a href="/logout" class="btn btn-outline-secondary btn-sm rounded-pill ms-3"><i
+                        class="bi bi-box-arrow-right"></i> Logout</a>
+            </div>
+        </header>
+
+        <div class="filter-bar">
+            <form method="GET" action="" class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label for="search" class="form-label fw-semibold small mb-1">Search by Name / Reg No</label>
+                    <input type="text" class="form-control form-control-sm" id="search" name="search"
+                        placeholder="Search..." value="{{ .Search }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="od_type" class="form-label fw-semibold small mb-1">Type</label>
+                    <select class="form-select form-select-sm" id="od_type" name="od_type">
+                        <option value="">All</option>
+                        <option value="internal" {{ if eq .ODTypeFilter "internal" }}selected{{ end }}>Internal</option>
+                        <option value="external" {{ if eq .ODTypeFilter "external" }}selected{{ end }}>External</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="month" class="form-label fw-semibold small mb-1">Month</label>
+                    <input type="month" class="form-control form-control-sm" id="month" name="month"
+                        value="{{ .MonthFilter }}">
+                </div>
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1"><i
+                            class="bi bi-funnel-fill me-1"></i> Filter</button>
+                    <a href="?" class="btn btn-outline-secondary btn-sm flex-grow-1"><i class="bi bi-x-lg me-1"></i>
+                        Clear</a>
+                </div>
+            </form>
+        </div>
+
+        {{ if .FlashSuccess }}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ .FlashSuccess }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {{ end }}
+
+        {{ if not .Rows }}
+            <div class="alert alert-info text-center shadow-sm rounded-3 py-4">
+                <i class="bi bi-info-circle me-2"></i>
+                {{ if or .Search .ODTypeFilter .MonthFilter }}
+                    No OD applications match your current filter criteria.
+                {{ else }}
+                    No OD applications are currently assigned to you for review.
+                {{ end }}
+            </div>
+        {{ else }}
+            <div class="table-card">
+                <div class="table-responsive-lg">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>OD ID</th>
+                                <th>Student Name</th>
+                                <th>Register No</th>
+                                <th>Year/Dept/Sec</th>
+                                <th>OD Type</th>
+                                <th>Dates & Time</th>
+                                <th>Purpose / Event</th>
+                                <th>Mentor Status</th>
+                                <th>Action</th>
+                                <th>Team</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .Rows }}
+                                <tr>
+                                    <td data-label="OD ID"><span
+                                            class="badge bg-secondary">{{ .ID }}</span></td>
+
+                                    <td data-label="Student Name"><span
+                                            class="fw-bold text-dark">{{ .MemberName }}</span>
+                                    </td>
+
+                                    <td data-label="Register No">{{ .MemberRegNo }}</td>
+
+                                    <td data-label="Class">{{ .MemberYear }} / {{ .MemberDept }} / {{ .MemberSec }}</td>
+
+                                    <td data-label="Type"><span
+                                            class="badge bg-info text-dark">{{ .ODType }}</span>
+                                    </td>
+
+                                    <td data-label="Date/Time" class="small">
+                                        {{ .DateStr }}
+                                    </td>
+
+                                    <td data-label="Purpose" class="detail-group">
+                                        <span class="fw-semibold text-truncate d-block"
+                                            style="max-width: 150px; margin-left: auto;">
+                                            {{ .Purpose }}
+                                        </span>
+                                        {{ if .CollegeName.Valid }}
+                                            <span class="small text-muted d-block">@
+                                                {{ .CollegeName.String }}</span>
+                                        {{ else }}
+                                            <span class="small text-muted d-block">Internal</span>
+                                        {{ end }}
+                                        <button type="button" class="view-more-btn p-0" data-bs-toggle="modal"
+                                            data-bs-target="#purposeModal"
+                                            data-purpose="{{ .Purpose }}"
+                                            data-event="{{ .EventName.String }}"
+                                            data-college="{{ .CollegeName.String }}">View
+                                            Details</button>
+                                    </td>
+
+                                    <td data-label="Status">
+                                        {{ $ms := .MentorStatus }}
+                                        <span class="badge {{ if eq $ms "Accepted" }}bg-accepted{{ else if eq $ms "Mentors Accepted" }}bg-accepted{{ else if eq $ms "Rejected" }}bg-rejected{{ else if eq $ms "Mentors Rejected" }}bg-rejected{{ else }}bg-pending{{ end }}">{{ $ms }}</span>
+                                    </td>
+
+                                    <td data-label="Action">
+                                        {{ if or (eq .MentorStatus "Pending") (not .MentorStatus) }}
+                                            <form method="post" action="/mentor/action"
+                                                class="d-flex gap-2 action-form justify-content-center justify-content-lg-start">
+                                                <input type="hidden" name="member_id" value="{{ .MemberID }}">
+                                                <input type="hidden" name="action" value="">
+                                                <button type="button"
+                                                    class="btn btn-outline-success btn-sm btn-action btn-accept flex-fill">Accept</button>
+                                                <button type="button"
+                                                    class="btn btn-outline-danger btn-sm btn-action btn-reject flex-fill">Reject</button>
+                                                <button type="submit"
+                                                    class="btn btn-primary btn-sm btn-action btn-confirm d-none flex-fill">Confirm</button>
+                                            </form>
+                                        {{ else }}
+                                            <span class="text-muted small fst-italic">Completed</span>
+                                        {{ end }}
+                                    </td>
+
+                                    <td data-label="Team">
+                                        <button type="button"
+                                            class="btn btn-outline-primary btn-sm btn-action view-team-btn w-100"
+                                            data-team='{{ .TeamJSON }}'
+                                            data-mentor="{{ $.User.name }}" data-bs-toggle="modal"
+                                            data-bs-target="#teamModal">
+                                            <i class="bi bi-people-fill me-1"></i> View Team
+                                        </button>
+                                    </td>
+                                </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{ end }}
+    </div>
+
+    <div class="modal fade" id="teamModal" tabindex="-1" aria-labelledby="teamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="teamModalLabel"><i class="bi bi-people-fill me-2"></i> Team Status</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0" id="teamModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="purposeModal" tabindex="-1" aria-labelledby="purposeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="purposeModalLabel"><i class="bi bi-info-circle me-2"></i> Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="purposeModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.action-form').forEach(form => {
+            const btnAccept = form.querySelector('.btn-accept');
+            const btnReject = form.querySelector('.btn-reject');
+            const btnConfirm = form.querySelector('.btn-confirm');
+            const hiddenAction = form.querySelector('input[name="action"]');
+
+            const setActionStyle = (targetButton, action) => {
+                form.querySelectorAll('.btn-action').forEach(btn => {
+                    btn.classList.remove('btn-primary', 'btn-danger');
+                    if (btn.classList.contains('btn-outline-success')) btn.classList.add('btn-outline-success');
+                    if (btn.classList.contains('btn-outline-danger')) btn.classList.add('btn-outline-danger');
+                });
+                if (action === 'accept') {
+                    targetButton.classList.remove('btn-outline-success');
+                    targetButton.classList.add('btn-primary');
+                } else if (action === 'reject') {
+                    targetButton.classList.remove('btn-outline-danger');
+                    targetButton.classList.add('btn-danger');
+                }
+                btnConfirm.classList.remove('d-none');
+            };
+
+            btnAccept.addEventListener('click', () => { hiddenAction.value = 'accept'; setActionStyle(btnAccept, 'accept'); });
+            btnReject.addEventListener('click', () => { hiddenAction.value = 'reject'; setActionStyle(btnReject, 'reject'); });
+
+            // Form Submit Logic
+            // The existing PHP JS used fetch to post and reload.
+            // But here we are using standard form submit.
+            // If we want async, we can keep the fetch logic, but simple form submit is robust.
+            // The template code below uses standard form submit via the Confirm button type="submit".
+        });
+
+        document.querySelectorAll('.view-team-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const teamData = JSON.parse(btn.dataset.team);
+                const currentMentor = btn.dataset.mentor;
+                let tableHtml = `<div class="table-responsive"><table class="table table-striped table-hover align-middle text-center table-sm mb-0"><thead class="table-light"><tr><th>Name</th><th>Reg No</th><th>Mentor</th><th>Status</th></tr></thead><tbody>`;
+                teamData.forEach(member => {
+                    const highlight = (member.mentor === currentMentor) ? "table-mentor-row" : "";
+                    let badgeClass = 'bg-pending';
+                    let st = (member.mentor_status || "Pending").toLowerCase();
+                    if (st.includes('accepted')) badgeClass = 'bg-accepted';
+                    else if (st.includes('rejected')) badgeClass = 'bg-rejected';
+
+                    tableHtml += `<tr class="${highlight}"><td><span class="text-dark fw-semibold">${member.member_name}</span></td><td>${member.member_regno}</td><td>${member.mentor}</td><td><span class="badge ${badgeClass}">${member.mentor_status || "Pending"}</span></td></tr>`;
+                });
+                tableHtml += "</tbody></table></div>";
+                document.getElementById("teamModalBody").innerHTML = tableHtml;
+            });
+        });
+
+        document.querySelectorAll('.view-more-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var purpose = btn.getAttribute('data-purpose');
+                var event = btn.getAttribute('data-event');
+                var college = btn.getAttribute('data-college');
+                document.getElementById('purposeModalBody').innerHTML = `<div class="mb-3"><strong>Purpose:</strong><div class="text-dark border p-2 rounded bg-light" style="white-space: pre-wrap;">${purpose ? purpose : '—'}</div></div><div class="mb-2"><strong>Event Name:</strong> <span class="text-dark">${event ? event : '—'}</span></div><div><strong>College Name:</strong> <span class="text-dark">${college ? college : '—'}</span></div>`;
+            });
+        });
+    </script>
+</body>
+
+</html>

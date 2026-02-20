@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CA Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #0dcaf0;
+            /* CA Theme Color (Cyan/Info) */
+            --primary-dark: #0aa2c0;
+            --light-bg: #f8f9fa;
+            --dark-text: #212529;
+            --white: #ffffff;
+        }
+
+        body {
+            background: var(--light-bg);
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+            padding-bottom: 60px;
+        }
+
+        .container-fluid {
+            max-width: 1600px;
+        }
+
+        .dashboard-header {
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* --- DESKTOP TABLE STYLES --- */
+        .table th,
+        .table td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 0.75rem 0.5rem;
+            white-space: nowrap;
+        }
+
+        .table thead th {
+            background: var(--primary-color);
+            color: var(--dark-text);
+            /* Dark text for contrast on Cyan */
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .table td.detail-group {
+            text-align: left;
+            white-space: normal;
+            min-width: 200px;
+        }
+
+        /* --- PROFILE PILL STYLES --- */
+        .profile-expand-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: var(--dark-text);
+            height: 42px;
+            max-width: 42px;
+            border-radius: 50px;
+            overflow: hidden;
+            cursor: default;
+            transition: max-width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            user-select: none;
+        }
+
+        .profile-expand-wrapper:hover {
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .profile-initial {
+            min-width: 42px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+        }
+
+        .profile-full-name {
+            white-space: nowrap;
+            padding-right: 20px;
+            padding-left: 5px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateX(-15px);
+            transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+        }
+
+        .profile-expand-wrapper:hover .profile-full-name {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* --- 📱 RESPONSIVE MOBILE VIEW --- */
+        @media screen and (max-width: 992px) {
+
+            /* Header Stack */
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .dashboard-header .d-flex {
+                width: 100%;
+                justify-content: flex-end;
+                gap: 15px;
+                margin-top: 10px;
+            }
+
+            /* Card Transformation */
+            .table thead {
+                display: none;
+            }
+
+            .table tbody,
+            .table tr,
+            .table td {
+                display: block;
+                width: 100%;
+            }
+
+            .table tr {
+                margin-bottom: 1.5rem;
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                overflow: hidden;
+            }
+
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                text-align: right;
+                padding: 10px 15px;
+                position: relative;
+                border-bottom: 1px solid #f0f0f0;
+                white-space: normal;
+                min-height: auto;
+            }
+
+            .table td:last-child {
+                border-bottom: 0;
+            }
+
+            /* Add Labels via pseudo-element */
+            .table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                text-align: left;
+                color: #6c757d;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                min-width: 110px;
+                margin-right: 15px;
+            }
+
+            /* Purpose Field Logic */
+            .table td[data-label="Purpose / Event"] {
+                flex-direction: column;
+                align-items: flex-start;
+                text-align: left;
+                padding: 15px;
+            }
+
+            .table td[data-label="Purpose / Event"]::before {
+                margin-bottom: 5px;
+            }
+
+            /* Team Button Logic */
+            .table td[data-label="Team Members"] {
+                justify-content: center;
+                padding: 15px;
+            }
+
+            .table td[data-label="Team Members"]::before {
+                display: none;
+            }
+
+            .view-team-btn {
+                width: 100%;
+            }
+
+            /* ID Header Style */
+            .table td[data-label="ID"] {
+                background-color: #f8f9fa;
+                border-bottom: 1px solid #e9ecef;
+                justify-content: flex-start;
+                gap: 10px;
+                font-weight: bold;
+            }
+
+            .table td[data-label="ID"]::before {
+                min-width: auto;
+                margin-right: 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid py-4">
+
+        <header
+            class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <h2 class="mb-0 fs-4 text-info fw-bold"><i class="bi bi-patch-check-fill me-2"></i> CA Dashboard</h2>
+
+            <div class="d-flex align-items-center">
+                <div class="profile-expand-wrapper me-3">
+                    <div class="profile-initial">
+                        {{ if .User.name }}{{ slice .User.name 0 1 }}{{ else }}C{{ end }}
+                    </div>
+                    <div class="profile-full-name">
+                        {{ .User.name }}
+                    </div>
+                </div>
+
+                <a href="/logout" class="btn btn-outline-secondary btn-sm rounded-pill"><i
+                        class="bi bi-box-arrow-right me-1"></i> Logout</a>
+            </div>
+        </header>
+
+        <div class="card mb-4">
+            <div class="card-body p-3">
+                <form method="GET" action="/ca/dashboard" class="row g-3 align-items-end">
+                    <div class="col-12 col-md-7">
+                        <label class="form-label small fw-bold text-muted">Search</label>
+                        <input type="text" class="form-control" name="search" placeholder="Search ID, Name, Reg No..."
+                            value="{{ .Search }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted">Month</label>
+                        <input type="month" class="form-control" name="month"
+                            value="{{ .MonthFilter }}">
+                    </div>
+                    <div class="col-6 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-info text-white w-100"><i
+                                class="bi bi-funnel-fill me-1"></i> Filter</button>
+                        <a href="/ca/dashboard" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg"></i></a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{ if not .Applications }}
+            <div class="alert alert-warning shadow-sm"><i class="bi bi-search me-2"></i> No applications found matching your
+                criteria.</div>
+        {{ else }}
+            <div class="card table-card">
+                <div class="table-responsive-lg">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Register No</th>
+                                <th>Name</th>
+                                <th>Year</th>
+                                <th>Dept</th>
+                                <th>Section</th>
+                                <th>OD Type</th>
+                                <th>Purpose / Event</th>
+                                <th>Dates</th>
+                                <th>Status</th>
+                                <th>Team Members</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .Applications }}
+                                <tr>
+                                    <td data-label="ID"><span class="badge bg-dark">{{ .ID }}</span>
+                                    </td>
+
+                                    <td data-label="Register No">{{ .RegisterNo }}</td>
+
+                                    <td data-label="Name" class="fw-bold">{{ .StudentName }}</td>
+
+                                    <td data-label="Year">{{ .Year }}</td>
+
+                                    <td data-label="Dept">{{ .Department }}</td>
+
+                                    <td data-label="Section">{{ .Section }}</td>
+
+                                    <td data-label="OD Type">
+                                        <span class="badge {{ if eq .ODType "internal" }}bg-info text-dark{{ else }}bg-primary{{ end }}">
+                                            {{ .ODType }}
+                                        </span>
+                                    </td>
+
+                                    <td data-label="Purpose / Event" class="detail-group">
+                                    <div class="fw-semibold">{{ .Purpose }}</div>
+                                        {{ if eq .ODType "external" }}
+                                            {{ if .CollegeName.Valid }}
+                                        
+                                                <div class="small text-muted"><i class="bi bi-building me-1"></i>
+                                                    {{ .CollegeName.String }}
+                                                    {{ if .EventName.Valid }}({{ .EventName.String }}){{ end }}</div>
+                                                    
+                                            {{ end }}
+                                        {{ end }}
+                                    </td>
+
+                                    <td data-label="Dates" class="small">
+                                        {{ .DateStr }}
+                                    </td>
+
+                                    <td data-label="Status">
+                                        <span class="badge {{ .BadgeClass }}">{{ .DisplayStatus }}</span>
+                                    </td>
+
+                                    <td data-label="Team Members">
+                                        {{ if .IsIndividual }}
+                                            <span class="text-muted small">Individual</span>
+                                        {{ else }}
+                                            <button type="button" class="btn btn-outline-info text-dark btn-sm view-team-btn w-100"
+                                                data-team='{{ .TeamJSON }}'
+                                                data-bs-toggle="modal" data-bs-target="#teamModal">
+                                                <i class="bi bi-people-fill me-1"></i> View
+                                            </button>
+                                        {{ end }}
+                                    </td>
+                                </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{ end }}
+    </div>
+
+    <!-- Team Modal -->
+    <div class="modal fade" id="teamModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-dark">
+                    <h5 class="modal-title"><i class="bi bi-people-fill me-2"></i> Team Members</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="teamModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.view-team-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const teamData = JSON.parse(btn.getAttribute('data-team'));
+                let tableHtml = `
+                <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle text-center table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th><th>Reg No</th><th>Year</th><th>Dept</th><th>Section</th><th>Mentor Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+
+                teamData.forEach(member => {
+                    let badgeClass = "bg-secondary";
+                    const status = (member.MentorStatus || "").toLowerCase();
+
+                    if (status.includes("accepted")) badgeClass = "bg-success";
+                    else if (status.includes("rejected")) badgeClass = "bg-danger";
+                    else if (status === "pending") badgeClass = "bg-warning text-dark";
+
+                    tableHtml += `
+                        <tr>
+                            <td class="fw-semibold">${member.MemberName}</td>
+                            <td>${member.MemberRegNo}</td>
+                            <td>${member.MemberYear}</td>
+                            <td>${member.MemberDepartment}</td>
+                            <td>${member.MemberSection}</td>
+                            <td><span class="badge ${badgeClass}">${member.MentorStatus || "-"}</span></td>
+                        </tr>`;
+                });
+
+                tableHtml += "</tbody></table></div>";
+                document.getElementById("teamModalBody").innerHTML = tableHtml;
+            });
+        });
+    </script>
+</body>
+
+</html>
