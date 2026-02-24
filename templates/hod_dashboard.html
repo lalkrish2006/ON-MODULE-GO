@@ -342,7 +342,7 @@
                                                     </button>
                                                 </div>
 
-                                                <div class="confirm-buttons d-none flex-column gap-2">
+                                                <div class="confirm-buttons d-none gap-2">
                                                     <button type="submit" class="btn btn-sm w-100 fw-bold btn-confirm-action">
                                                         Confirm?
                                                     </button>
@@ -452,14 +452,20 @@
                 }
 
                 initialDiv.classList.add('d-none');
+                initialDiv.classList.remove('d-flex');
                 confirmDiv.classList.remove('d-none');
+                confirmDiv.classList.add('d-flex', 'flex-column');
             }
 
             if (e.target.closest('.btn-cancel')) {
                 const btn = e.target.closest('.btn-cancel');
                 const form = btn.closest('.action-form');
-                form.querySelector('.confirm-buttons').classList.add('d-none');
-                form.querySelector('.initial-buttons').classList.remove('d-none');
+                const confirmDiv = form.querySelector('.confirm-buttons');
+                const initialDiv = form.querySelector('.initial-buttons');
+                confirmDiv.classList.add('d-none');
+                confirmDiv.classList.remove('d-flex', 'flex-column');
+                initialDiv.classList.remove('d-none');
+                initialDiv.classList.add('d-flex');
             }
         });
 
