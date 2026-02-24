@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"od-system/internal/database"
 	"od-system/internal/services"
+	"od-system/internal/utils"
 	"strings"
 )
 
@@ -175,6 +176,117 @@ func AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s", updateRole), http.StatusSeeOther)
+}
+
+func AdminAddUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Parse error", 400)
+		return
+	}
+
+	addRole := r.FormValue("role")
+	identifier := strings.TrimSpace(r.FormValue("identifier"))
+	rawPassword := strings.TrimSpace(r.FormValue("password"))
+
+	config, ok := UserRolesConfig[addRole]
+	if !ok || identifier == "" {
+		http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s&message=Invalid+request&type=error", addRole), http.StatusSeeOther)
+		return
+	}
+
+	if rawPassword == "" {
+		http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s&message=Password+is+required&type=error", addRole), http.StatusSeeOther)
+		return
+	}
+
+	// Date picker sends YYYY-MM-DD; convert to DDMMYYYY to match what
+	// the student types at login (e.g. 15081999 → MD5 → stored hash).
+	dobForHashing := rawPassword // fallback: use as-is
+	parts := strings.Split(rawPassword, "-")
+	if len(parts) == 3 {
+		// parts[0]=YYYY, parts[1]=MM, parts[2]=DD
+		dobForHashing = parts[2] + parts[1] + parts[0]
+	}
+
+	// Hash password using MD5 (matches login logic)
+	hashedPassword := utils.HashPasswordMD5(dobForHashing)
+
+	// Build INSERT query: PK + role fields + password column
+	allCols := append([]string{config.PK}, config.Fields...)
+	allCols = append(allCols, "password")
+
+	placeholders := make([]string, len(allCols))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	args := make([]interface{}, len(allCols))
+	args[0] = identifier
+	for i, field := range config.Fields {
+		args[i+1] = r.FormValue(field)
+	}
+	args[len(allCols)-1] = hashedPassword
+
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		config.Table,
+		strings.Join(allCols, ", "),
+		strings.Join(placeholders, ", "))
+
+	_, err := database.DB.Exec(query, args...)
+	msg := ""
+	msgType := ""
+	if err != nil {
+		log.Println("Admin Add Error:", err)
+		msg = "Error adding entry: " + err.Error()
+		msgType = "error"
+	} else {
+		msg = fmt.Sprintf("New %s entry '%s' added successfully!", addRole, identifier)
+		msgType = "success"
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s&message=%s&type=%s", addRole, msg, msgType), http.StatusSeeOther)
+}
+
+func AdminDeleteUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Parse error", 400)
+		return
+	}
+
+	delRole := r.FormValue("role")
+	identifier := strings.TrimSpace(r.FormValue("identifier"))
+
+	config, ok := UserRolesConfig[delRole]
+	if !ok || identifier == "" {
+		http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s&message=Invalid+request&type=error", delRole), http.StatusSeeOther)
+		return
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", config.Table, config.PK)
+	_, err := database.DB.Exec(query, identifier)
+
+	msg := ""
+	msgType := ""
+	if err != nil {
+		log.Println("Admin Delete Error:", err)
+		msg = "Error removing entry: " + err.Error()
+		msgType = "error"
+	} else {
+		msg = fmt.Sprintf("Entry '%s' removed from %s successfully!", identifier, delRole)
+		msgType = "success"
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s&message=%s&type=%s", delRole, msg, msgType), http.StatusSeeOther)
 }
 
 func AdminViewODs(w http.ResponseWriter, r *http.Request) {

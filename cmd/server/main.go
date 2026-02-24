@@ -60,6 +60,8 @@ func main() {
 	// Admin Routes
 	mux.HandleFunc("/admin/dashboard", handlers.AdminDashboard)
 	mux.HandleFunc("/admin/update", handlers.AdminUpdateUser)
+	mux.HandleFunc("/admin/add", handlers.AdminAddUser)
+	mux.HandleFunc("/admin/delete", handlers.AdminDeleteUser)
 	mux.HandleFunc("/admin/view_ods", handlers.AdminViewODs)
 
 	// Default redirect to login for root
