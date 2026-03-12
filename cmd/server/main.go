@@ -6,6 +6,7 @@ import (
 	"od-system/internal/config"
 	"od-system/internal/database"
 	"od-system/internal/handlers"
+	"od-system/internal/middleware"
 	"od-system/internal/services"
 	"od-system/internal/utils"
 	"os"
@@ -83,7 +84,11 @@ func main() {
 	}
 	serverAddress := ":" + port
 	log.Printf("Server starting on %s", serverAddress)
-	if err := http.ListenAndServe(serverAddress, mux); err != nil {
+	
+	// Apply global middleware
+	handler := middleware.RateLimit(mux)
+
+	if err := http.ListenAndServe(serverAddress, handler); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
 }
