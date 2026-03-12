@@ -44,6 +44,7 @@ func main() {
 
 	mux.HandleFunc("/hod/dashboard", handlers.HODDashboard)
 	mux.HandleFunc("/hod/action", handlers.HODAction)
+	mux.HandleFunc("/hod/download-pdf", handlers.DownloadHODHistoryPDF)
 
 	mux.HandleFunc("/principal/dashboard", handlers.PrincipalDashboard)
 	mux.HandleFunc("/principal/action", handlers.PrincipalAction)

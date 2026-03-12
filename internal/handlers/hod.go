@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"github.com/jung-kurt/gofpdf"
 	"net/http"
 	"od-system/internal/database"
 	"od-system/internal/models"
 	"od-system/internal/services"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,6 +20,13 @@ type HODDashboardData struct {
 	HistoryODs  []HODDashboardRow
 	Search      string
 	MonthFilter string
+	Name        string
+	RegNo       string
+	StartDate   string
+	EndDate     string
+	ODType      string
+	Class       string
+	YearFilter  string
 	FlashSuccess string
 	IsAdmin     bool
 }
@@ -78,6 +87,13 @@ func HODDashboard(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 	month := r.URL.Query().Get("month")
+	name := r.URL.Query().Get("name")
+	regNo := r.URL.Query().Get("reg_no")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	odType := r.URL.Query().Get("od_type")
+	class := r.URL.Query().Get("class")
+	yearFilter := r.URL.Query().Get("year")
 
 	// PHP Logic: Single Query for all items
 	baseQuery := `
@@ -111,8 +127,43 @@ func HODDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if month != "" {
-		baseQuery += " AND DATE_FORMAT(o.from_date, '%Y-%m') = ?"
-		args = append(args, month)
+		baseQuery += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		args = append(args, month, month)
+	}
+
+	if name != "" {
+		baseQuery += " AND o.student_name LIKE ?"
+		args = append(args, "%"+name+"%")
+	}
+
+	if regNo != "" {
+		baseQuery += " AND o.register_no LIKE ?"
+		args = append(args, "%"+regNo+"%")
+	}
+
+	if startDate != "" {
+		baseQuery += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		args = append(args, startDate, startDate)
+	}
+
+	if endDate != "" {
+		baseQuery += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		args = append(args, endDate, endDate)
+	}
+
+	if odType != "" {
+		baseQuery += " AND o.od_type = ?"
+		args = append(args, odType)
+	}
+
+	if class != "" {
+		baseQuery += " AND o.section = ?"
+		args = append(args, class)
+	}
+
+	if yearFilter != "" {
+		baseQuery += " AND o.year = ?"
+		args = append(args, yearFilter)
 	}
 
 	baseQuery += " ORDER BY o.id DESC"
@@ -300,6 +351,13 @@ func HODDashboard(w http.ResponseWriter, r *http.Request) {
 		HistoryODs:   historyODs,
 		Search:       search,
 		MonthFilter:  month,
+		Name:         name,
+		RegNo:        regNo,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		ODType:       odType,
+		Class:        class,
+		YearFilter:   yearFilter,
 		FlashSuccess: flashSuccess,
 		IsAdmin:      role == "admin",
 	}
@@ -389,4 +447,172 @@ func HODAction(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect back to dashboard
 	http.Redirect(w, r, "/hod/dashboard", http.StatusSeeOther)
+}
+
+// DownloadHODHistoryPDF handler
+func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
+	session := services.GetSession(r)
+	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	role, _ := session.Values["role"].(string)
+	if role != "hod" && role != "admin" {
+		http.Redirect(w, r, "/login?error=unauthorized", http.StatusSeeOther)
+		return
+	}
+
+	dept, _ := session.Values["department"].(string)
+	if role == "admin" {
+		if d := r.URL.Query().Get("department"); d != "" {
+			dept = d
+		}
+	}
+
+	search := r.URL.Query().Get("search")
+	month := r.URL.Query().Get("month")
+	name := r.URL.Query().Get("name")
+	regNo := r.URL.Query().Get("reg_no")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	odType := r.URL.Query().Get("od_type")
+	class := r.URL.Query().Get("class")
+	yearFilter := r.URL.Query().Get("year")
+
+	// Same query logic as HODDashboard but focusing on history items primarily or all?
+	// The user asked for OD History, usually meaning all data in the board.
+	baseQuery := `
+		SELECT DISTINCT ` + ODColumns + ` 
+		FROM od_applications o 
+		LEFT JOIN od_team_members t ON o.id = t.od_id
+		WHERE o.department = ?
+	`
+	args := []interface{}{dept}
+
+	if search != "" {
+		like := "%" + search + "%"
+		baseQuery += ` AND (
+			o.id LIKE ? OR o.register_no LIKE ? OR o.student_name LIKE ? OR
+			o.year LIKE ? OR o.department LIKE ? OR o.section LIKE ? OR
+			o.od_type LIKE ? OR o.purpose LIKE ? OR o.college_name LIKE ? OR
+			o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ? OR t.mentor LIKE ?
+		)`
+		for i := 0; i < 13; i++ {
+			args = append(args, like)
+		}
+	}
+
+	if month != "" {
+		baseQuery += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		args = append(args, month, month)
+	}
+
+	if name != "" {
+		baseQuery += " AND o.student_name LIKE ?"
+		args = append(args, "%"+name+"%")
+	}
+
+	if regNo != "" {
+		baseQuery += " AND o.register_no LIKE ?"
+		args = append(args, "%"+regNo+"%")
+	}
+
+	if startDate != "" {
+		baseQuery += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		args = append(args, startDate, startDate)
+	}
+
+	if endDate != "" {
+		baseQuery += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		args = append(args, endDate, endDate)
+	}
+
+	if odType != "" {
+		baseQuery += " AND o.od_type = ?"
+		args = append(args, odType)
+	}
+
+	if class != "" {
+		baseQuery += " AND o.section = ?"
+		args = append(args, class)
+	}
+
+	if yearFilter != "" {
+		baseQuery += " AND o.year = ?"
+		args = append(args, yearFilter)
+	}
+
+	baseQuery += " ORDER BY o.id DESC"
+
+	rows, err := database.DB.Query(baseQuery, args...)
+	if err != nil {
+		log.Println("PDF Query Error:", err)
+		http.Error(w, "Database error", 500)
+		return
+	}
+	defer rows.Close()
+
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 16)
+	pdf.Cell(280, 10, "OD History Report - " + dept)
+	pdf.Ln(12)
+
+	// Table Header
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetFillColor(200, 200, 200)
+	headers := []string{"ID", "Name", "Reg No", "Year", "Type", "Dates", "Purpose", "Status"}
+	widths := []float64{15, 45, 30, 15, 20, 50, 70, 35}
+
+	for i, h := range headers {
+		pdf.CellFormat(widths[i], 10, h, "1", 0, "C", true, 0, "")
+	}
+	pdf.Ln(-1)
+
+	// Table Data
+	pdf.SetFont("Arial", "", 9)
+	for rows.Next() {
+		var od models.ODApplication
+		err := rows.Scan(
+			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
+			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
+			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
+			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		// Simplified Date logic for PDF
+		dateStr := "-"
+		formatDate := func(ns sql.NullString) string {
+			if !ns.Valid || ns.String == "0000-00-00" { return "-" }
+			t, _ := time.Parse("2006-01-02", ns.String[:10])
+			return t.Format("02-01-06")
+		}
+
+		if od.ODType == "Internal" || od.ODType == "internal" {
+			if od.ODDate.Valid && od.ODDate.String != "0000-00-00" {
+				dateStr = formatDate(od.ODDate)
+			} else {
+				dateStr = formatDate(od.FromDate) + " to " + formatDate(od.ToDate)
+			}
+		} else {
+			dateStr = formatDate(od.FromDate) + " to " + formatDate(od.ToDate)
+		}
+
+		pdf.CellFormat(widths[0], 10, strconv.Itoa(od.ID), "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[1], 10, od.StudentName, "1", 0, "L", false, 0, "")
+		pdf.CellFormat(widths[2], 10, od.RegisterNo, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[3], 10, od.Year, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[4], 10, od.ODType, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[5], 10, dateStr, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[6], 10, od.Purpose, "1", 0, "L", false, 0, "")
+		pdf.CellFormat(widths[7], 10, od.Status, "1", 0, "C", false, 0, "")
+		pdf.Ln(-1)
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=od_history_"+dept+".pdf")
+	pdf.Output(w)
 }
