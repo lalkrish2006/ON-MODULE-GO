@@ -204,14 +204,8 @@ func AdminAddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Date picker sends YYYY-MM-DD; convert to DDMMYYYY to match what
-	// the student types at login (e.g. 15081999 → MD5 → stored hash).
-	dobForHashing := rawPassword // fallback: use as-is
-	parts := strings.Split(rawPassword, "-")
-	if len(parts) == 3 {
-		// parts[0]=YYYY, parts[1]=MM, parts[2]=DD
-		dobForHashing = parts[2] + parts[1] + parts[0]
-	}
+	// Date picker sends YYYY-MM-DD; user requested to keep this format for login.
+	dobForHashing := rawPassword
 
 	// Hash password using MD5 (matches login logic)
 	hashedPassword := utils.HashPasswordMD5(dobForHashing)
