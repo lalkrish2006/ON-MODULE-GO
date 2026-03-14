@@ -60,11 +60,11 @@ func AdminDashboard(w http.ResponseWriter, r *http.Request) {
 
 	if config, ok := UserRolesConfig[selectedRole]; ok {
 		tableConfig = &config
-		
+
 		// Build Query
 		columns := append([]string{config.PK}, config.Fields...)
 		query := fmt.Sprintf("SELECT %s FROM %s ORDER BY name ASC", strings.Join(columns, ", "), config.Table)
-		
+
 		rows, err := database.DB.Query(query)
 		if err != nil {
 			log.Println("Admin Query Error:", err)
@@ -135,7 +135,7 @@ func AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	updateRole := r.FormValue("role")
 	identifier := r.FormValue("identifier")
-	
+
 	config, ok := UserRolesConfig[updateRole]
 	if !ok || identifier == "" {
 		http.Redirect(w, r, "/admin/dashboard?error=invalid_request", http.StatusSeeOther)
@@ -148,7 +148,7 @@ func AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	for _, field := range config.Fields {
 		val := r.FormValue(field)
-		// We update even if empty, as user might want to clear a field. 
+		// We update even if empty, as user might want to clear a field.
 		// PHP code checks `isset($_POST[$field])` which is true for empty string in form post
 		setClauses = append(setClauses, fmt.Sprintf("%s = ?", field))
 		args = append(args, val)
@@ -159,7 +159,7 @@ func AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	if len(setClauses) > 0 {
 		query := fmt.Sprintf("UPDATE %s SET %s WHERE %s = ?", config.Table, strings.Join(setClauses, ", "), config.PK)
 		_, err := database.DB.Exec(query, args...)
-		
+
 		msg := ""
 		msgType := ""
 		if err != nil {
@@ -170,7 +170,7 @@ func AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			msg = fmt.Sprintf("Data for %s in %s updated successfully!", identifier, updateRole)
 			msgType = "success"
 		}
-		
+
 		http.Redirect(w, r, fmt.Sprintf("/admin/dashboard?role=%s&message=%s&type=%s", updateRole, msg, msgType), http.StatusSeeOther)
 		return
 	}
@@ -291,12 +291,12 @@ func AdminViewODs(w http.ResponseWriter, r *http.Request) {
 	}
 	role, _ := session.Values["role"].(string)
 	registerNo, _ := session.Values["register_no"].(string)
-	
+
 	if role != "admin" {
 		http.Redirect(w, r, "/login?error=unauthorized", http.StatusSeeOther)
 		return
 	}
-	
+
 	// Fetch Department
 	var department string
 	err := database.DB.QueryRow("SELECT department FROM admin_users WHERE register_no = ?", registerNo).Scan(&department)
@@ -305,7 +305,7 @@ func AdminViewODs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not fetch admin department", 500)
 		return
 	}
-	
+
 	// Redirect to HOD Dashboard
 	http.Redirect(w, r, "/hod/dashboard?department="+department+"&access=admin", http.StatusSeeOther)
 }

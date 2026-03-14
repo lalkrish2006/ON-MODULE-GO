@@ -15,26 +15,21 @@ import (
 )
 
 type HODDashboardData struct {
-	User        map[string]interface{}
-	PendingODs  []HODDashboardRow
-	HistoryODs  []HODDashboardRow
-	Search      string
-	MonthFilter string
-	Name        string
-	RegNo       string
-	StartDate   string
-	EndDate     string
-	ODType      string
-	Class       string
-	YearFilter  string
+	User         map[string]interface{}
+	PendingODs   []HODDashboardRow
+	HistoryODs   []HODDashboardRow
+	Search       string
+	MonthFilter  string
+	Name         string
+	RegNo        string
+	StartDate    string
+	EndDate      string
+	ODType       string
+	Class        string
+	YearFilter   string
 	FlashSuccess string
-	IsAdmin     bool
+	IsAdmin      bool
 }
-
-// ... (HODDashboardRow and HODTeamMember structs remain unchanged)
-
-// HODDashboard handler
-
 
 type HODDashboardRow struct {
 	ID          int
@@ -64,6 +59,144 @@ type HODTeamMember struct {
 	Mentor       string `json:"mentor"`
 	MentorStatus string `json:"mentor_status"`
 }
+
+func processODRows(rows *sql.Rows) ([]HODDashboardRow, error) {
+	var result []HODDashboardRow
+	defer rows.Close()
+
+	for rows.Next() {
+		var od models.ODApplication
+		err := rows.Scan(
+			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
+			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
+			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
+			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		// Fetch Team
+		tmQuery := "SELECT id, member_name, member_regno, member_year, member_department, member_section, mentor, mentor_status FROM od_team_members WHERE od_id = ?"
+		tmRows, err := database.DB.Query(tmQuery, od.ID)
+		var team []HODTeamMember
+		if err == nil {
+			for tmRows.Next() {
+				var m HODTeamMember
+				var ms sql.NullString
+				var mentor sql.NullString
+				tmRows.Scan(&m.ID, &m.Name, &m.RegNo, &m.Year, &m.Dept, &m.Section, &mentor, &ms)
+				m.MentorStatus = ms.String
+				m.Mentor = mentor.String
+				team = append(team, m)
+			}
+			tmRows.Close()
+		}
+
+		// Helper functions
+		formatDate := func(d string) string {
+			d = strings.TrimSpace(d)
+			if len(d) > 10 {
+				d = d[:10]
+			}
+			t, err := time.Parse("2006-01-02", d)
+			if err != nil { return d }
+			if t.Year() <= 1 { return "-" }
+			return t.Format("2 Jan 2006")
+		}
+		formatTime := func(tStr string) string {
+			t, err := time.Parse("15:04:05", tStr)
+			if err != nil {
+				t, err = time.Parse("15:04", tStr)
+				if err != nil { return tStr }
+			}
+			return t.Format("3:04 pm")
+		}
+		isValidDate := func(ns sql.NullString) bool {
+			return ns.Valid && ns.String != "0000-00-00" && len(ns.String) > 0
+		}
+
+		// Normalize ODType
+		od.ODType = strings.ToLower(od.ODType)
+
+		// Date Formatting Logic
+		dateStr := "-"
+		
+		if od.ODType == "internal" {
+			hasTime := od.FromTime.Valid && od.ToTime.Valid && od.FromTime.String != "00:00:00" && od.ToTime.String != "00:00:00"
+			if isValidDate(od.FromDate) && isValidDate(od.ToDate) {
+				f := formatDate(od.FromDate.String)
+				t := formatDate(od.ToDate.String)
+				if f != "-" && t != "-" {
+					if f == t {
+						if hasTime {
+							dateStr = formatTime(od.FromTime.String) + " to " + formatTime(od.ToTime.String) + ", " + f
+						} else {
+							dateStr = f
+						}
+					} else {
+						dateStr = f + " to " + t
+					}
+				}
+			} else if isValidDate(od.ODDate) {
+				d := formatDate(od.ODDate.String)
+				if d != "-" {
+					if hasTime {
+						dateStr = formatTime(od.FromTime.String) + " to " + formatTime(od.ToTime.String) + ", " + d
+					} else {
+						dateStr = d
+					}
+				}
+			}
+		} else {
+			if isValidDate(od.FromDate) && isValidDate(od.ToDate) {
+				f := formatDate(od.FromDate.String)
+				t := formatDate(od.ToDate.String)
+				if f != "-" && t != "-" {
+					if f == t {
+						dateStr = f
+					} else {
+						dateStr = f + " to " + t
+					}
+				}
+			} else if isValidDate(od.ODDate) {
+				dateStr = formatDate(od.ODDate.String)
+			}
+		}
+
+		badgeClass := "bg-secondary"
+		if strings.Contains(strings.ToLower(od.Status), "accepted") {
+			badgeClass = "bg-success"
+		} else if strings.Contains(strings.ToLower(od.Status), "rejected") {
+			badgeClass = "bg-danger"
+		} else if od.Status == "Mentor Accepted" {
+			badgeClass = "bg-warning text-dark"
+		}
+
+		teamJSON, _ := json.Marshal(team)
+
+		result = append(result, HODDashboardRow{
+			ID:          od.ID,
+			RegisterNo:  od.RegisterNo,
+			StudentName: od.StudentName,
+			Year:        od.Year,
+			Department:  od.Department,
+			Section:     od.Section,
+			ODType:      od.ODType,
+			Purpose:     od.Purpose,
+			CollegeName: od.CollegeName.String,
+			EventName:   od.EventName.String,
+			DateStr:     dateStr,
+			Status:      od.Status,
+			BadgeClass:  badgeClass,
+			TeamMembers: team,
+			TeamJSON:    string(teamJSON),
+		})
+	}
+	return result, nil
+}
+
+// HODDashboard handler
 
 // HODDashboard handler
 func HODDashboard(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +228,8 @@ func HODDashboard(w http.ResponseWriter, r *http.Request) {
 	class := r.URL.Query().Get("class")
 	yearFilter := r.URL.Query().Get("year")
 
-	// PHP Logic: Single Query for all items
-	baseQuery := `
+	// 1. Pending Query: ALWAYS fetch Pending items unfiltered
+	pendingQuery := `
 		SELECT DISTINCT ` + ODColumns + ` 
 		FROM od_applications o 
 		LEFT JOIN od_team_members t ON o.id = t.od_id
@@ -105,227 +238,99 @@ func HODDashboard(w http.ResponseWriter, r *http.Request) {
 			(o.status = 'Mentors Rejected') OR 
 			EXISTS (SELECT 1 FROM od_team_members t2 WHERE t2.od_id = o.id AND t2.mentor_status = 'Rejected' AND (SELECT COUNT(*) FROM od_team_members t3 WHERE t3.od_id = o.id) = 1)
 		)
+		AND (o.status = 'Mentors Accepted' OR o.status = 'Mentors Reviewed')
+		ORDER BY o.id DESC
+	`
+	pRows, err := database.DB.Query(pendingQuery, dept)
+	if err != nil {
+		log.Println("Pending Query Error:", err)
+		http.Error(w, "Database error", 500)
+		return
+	}
+	pendingODs, _ := processODRows(pRows)
+
+	// 2. History Query: Fetch everything else WITH filters
+	historyBaseQuery := `
+		SELECT DISTINCT ` + ODColumns + ` 
+		FROM od_applications o 
+		LEFT JOIN od_team_members t ON o.id = t.od_id
+		WHERE o.department = ?
+		AND NOT (o.status = 'Mentors Accepted' OR o.status = 'Mentors Reviewed')
+		AND NOT (
+			(o.status = 'Mentors Rejected') OR 
+			EXISTS (SELECT 1 FROM od_team_members t2 WHERE t2.od_id = o.id AND t2.mentor_status = 'Rejected' AND (SELECT COUNT(*) FROM od_team_members t3 WHERE t3.od_id = o.id) = 1)
+		)
 		AND (
-			(o.od_type != 'Internal' AND (o.status = 'Mentors Accepted' OR o.status LIKE 'HOD%'))
+			(LOWER(o.od_type) != 'internal' AND (o.status LIKE 'HOD%' OR o.status LIKE 'Principal%'))
 			OR
-			(o.od_type = 'Internal' AND NOT EXISTS (SELECT 1 FROM od_team_members tm WHERE tm.od_id = o.id AND tm.mentor_status = 'Pending') AND (o.status LIKE 'Mentors%' OR o.status LIKE 'HOD%'))
+			(LOWER(o.od_type) = 'internal' AND NOT EXISTS (SELECT 1 FROM od_team_members tm WHERE tm.od_id = o.id AND tm.mentor_status = 'Pending') AND (o.status LIKE 'HOD%' OR o.status LIKE 'Principal%'))
 		)
 	`
-	args := []interface{}{dept}
+	hArgs := []interface{}{dept}
 
 	if search != "" {
 		like := "%" + search + "%"
-		baseQuery += ` AND (
+		historyBaseQuery += ` AND (
 			o.id LIKE ? OR o.register_no LIKE ? OR o.student_name LIKE ? OR
 			o.year LIKE ? OR o.department LIKE ? OR o.section LIKE ? OR
 			o.od_type LIKE ? OR o.purpose LIKE ? OR o.college_name LIKE ? OR
-			o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ? OR t.mentor LIKE ?
+			o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ? OR 
+			t.mentor LIKE ? OR o.status LIKE ?
 		)`
-		for i := 0; i < 13; i++ {
-			args = append(args, like)
+		for i := 0; i < 14; i++ {
+			hArgs = append(hArgs, like)
 		}
 	}
 
 	if month != "" {
-		baseQuery += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
-		args = append(args, month, month)
+		historyBaseQuery += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		hArgs = append(hArgs, month, month)
 	}
 
 	if name != "" {
-		baseQuery += " AND o.student_name LIKE ?"
-		args = append(args, "%"+name+"%")
+		historyBaseQuery += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
+		hArgs = append(hArgs, "%"+name+"%", "%"+name+"%")
 	}
 
 	if regNo != "" {
-		baseQuery += " AND o.register_no LIKE ?"
-		args = append(args, "%"+regNo+"%")
+		historyBaseQuery += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
+		hArgs = append(hArgs, "%"+regNo+"%", "%"+regNo+"%")
 	}
 
 	if startDate != "" {
-		baseQuery += " AND (o.from_date >= ? OR o.od_date >= ?)"
-		args = append(args, startDate, startDate)
+		historyBaseQuery += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		hArgs = append(hArgs, startDate, startDate)
 	}
 
 	if endDate != "" {
-		baseQuery += " AND (o.to_date <= ? OR o.od_date <= ?)"
-		args = append(args, endDate, endDate)
+		historyBaseQuery += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		hArgs = append(hArgs, endDate, endDate)
 	}
 
 	if odType != "" {
-		baseQuery += " AND o.od_type = ?"
-		args = append(args, odType)
+		historyBaseQuery += " AND LOWER(o.od_type) = LOWER(?)"
+		hArgs = append(hArgs, odType)
 	}
 
 	if class != "" {
-		baseQuery += " AND o.section = ?"
-		args = append(args, class)
+		historyBaseQuery += " AND o.section = ?"
+		hArgs = append(hArgs, class)
 	}
 
 	if yearFilter != "" {
-		baseQuery += " AND o.year = ?"
-		args = append(args, yearFilter)
+		historyBaseQuery += " AND o.year = ?"
+		hArgs = append(hArgs, yearFilter)
 	}
 
-	baseQuery += " ORDER BY o.id DESC"
+	historyBaseQuery += " ORDER BY o.id DESC"
 
-	rows, err := database.DB.Query(baseQuery, args...)
+	hRows, err := database.DB.Query(historyBaseQuery, hArgs...)
 	if err != nil {
-		log.Println("HOD Query Error:", err)
+		log.Println("History Query Error:", err)
 		http.Error(w, "Database error", 500)
 		return
 	}
-	defer rows.Close()
-
-	var pendingODs []HODDashboardRow
-	var historyODs []HODDashboardRow
-
-	for rows.Next() {
-		var od models.ODApplication
-		err := rows.Scan(
-			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
-			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
-			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
-			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
-		)
-		if err != nil {
-			continue
-		}
-
-		// Fetch Team
-		tmQuery := "SELECT id, member_name, member_regno, member_year, member_department, member_section, mentor, mentor_status FROM od_team_members WHERE od_id = ?"
-		tmRows, err := database.DB.Query(tmQuery, od.ID)
-		var team []HODTeamMember
-		if err == nil {
-			for tmRows.Next() {
-				var m HODTeamMember
-				var ms sql.NullString
-				var mentor sql.NullString
-				tmRows.Scan(&m.ID, &m.Name, &m.RegNo, &m.Year, &m.Dept, &m.Section, &mentor, &ms)
-				m.MentorStatus = ms.String
-				m.Mentor = mentor.String
-				team = append(team, m)
-			}
-			tmRows.Close()
-		}
-
-		// Helper functions (inline)
-		formatDate := func(d string) string {
-			d = strings.TrimSpace(d)
-			if len(d) > 10 {
-				d = d[:10]
-			}
-			t, err := time.Parse("2006-01-02", d)
-			if err != nil { return d }
-			if t.Year() <= 1 { return "-" }
-			return t.Format("2 Jan 2006")
-		}
-		formatTime := func(tStr string) string {
-			t, err := time.Parse("15:04:05", tStr)
-			if err != nil {
-				t, err = time.Parse("15:04", tStr)
-				if err != nil { return tStr }
-			}
-			return t.Format("3:04 pm")
-		}
-		isValidDate := func(ns sql.NullString) bool {
-			return ns.Valid && ns.String != "0000-00-00" && len(ns.String) > 0
-		}
-
-		// Normalize ODType
-		od.ODType = strings.ToLower(od.ODType)
-
-		// Date Formatting Logic
-		dateStr := "-"
-		
-		// Internal OD
-		if od.ODType == "internal" {
-			hasTime := od.FromTime.Valid && od.ToTime.Valid && od.FromTime.String != "00:00:00" && od.ToTime.String != "00:00:00"
-			
-			// Case 3: More than a day (FromDate & ToDate valid)
-			if isValidDate(od.FromDate) && isValidDate(od.ToDate) {
-				f := formatDate(od.FromDate.String)
-				t := formatDate(od.ToDate.String)
-				if f != "-" && t != "-" {
-					if f == t {
-						// Same day
-						if hasTime {
-							// Case 2: Period-wise on same day (fallback if data is stored this way)
-							dateStr = formatTime(od.FromTime.String) + " to " + formatTime(od.ToTime.String) + ", " + f
-						} else {
-							// Case 1: Full Day
-							dateStr = f
-						}
-					} else {
-						// Case 3: Range
-						dateStr = f + " to " + t
-					}
-				}
-			} else if isValidDate(od.ODDate) {
-				// We have a single OD Date
-				d := formatDate(od.ODDate.String)
-				if d != "-" {
-					if hasTime {
-						// Case 2: Period-wise
-						dateStr = formatTime(od.FromTime.String) + " to " + formatTime(od.ToTime.String) + ", " + d
-					} else {
-						// Case 1: Full Day
-						dateStr = d
-					}
-				}
-			}
-		} else {
-			// External OD
-			if isValidDate(od.FromDate) && isValidDate(od.ToDate) {
-				f := formatDate(od.FromDate.String)
-				t := formatDate(od.ToDate.String)
-				if f != "-" && t != "-" {
-					if f == t {
-						dateStr = f
-					} else {
-						dateStr = f + " to " + t
-					}
-				}
-			} else if isValidDate(od.ODDate) {
-				dateStr = formatDate(od.ODDate.String)
-			}
-		}
-
-		badgeClass := "bg-secondary"
-		if strings.Contains(strings.ToLower(od.Status), "accepted") {
-			badgeClass = "bg-success"
-		} else if strings.Contains(strings.ToLower(od.Status), "rejected") {
-			badgeClass = "bg-danger"
-		} else if od.Status == "Mentor Accepted" {
-			badgeClass = "bg-warning text-dark"
-		}
-
-		teamJSON, _ := json.Marshal(team)
-
-		row := HODDashboardRow{
-			ID:          od.ID,
-			RegisterNo:  od.RegisterNo,
-			StudentName: od.StudentName,
-			Year:        od.Year,
-			Department:  od.Department,
-			Section:     od.Section,
-			ODType:      od.ODType,
-			Purpose:     od.Purpose,
-			CollegeName: od.CollegeName.String,
-			EventName:   od.EventName.String,
-			DateStr:     dateStr,
-			Status:      od.Status,
-			BadgeClass:  badgeClass,
-			TeamMembers: team,
-			TeamJSON:    string(teamJSON),
-		}
-
-		// Split into Pending vs History
-		if od.Status == "Mentors Accepted" || od.Status == "Mentors Reviewed" {
-			pendingODs = append(pendingODs, row)
-		} else {
-			historyODs = append(historyODs, row)
-		}
-	}
+	historyODs, _ := processODRows(hRows)
 
 	userMap := make(map[string]interface{})
 	for k, v := range session.Values {
@@ -486,6 +491,16 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 		FROM od_applications o 
 		LEFT JOIN od_team_members t ON o.id = t.od_id
 		WHERE o.department = ?
+		AND NOT (
+			(o.status = 'Mentors Rejected') OR 
+			EXISTS (SELECT 1 FROM od_team_members t2 WHERE t2.od_id = o.id AND t2.mentor_status = 'Rejected' AND (SELECT COUNT(*) FROM od_team_members t3 WHERE t3.od_id = o.id) = 1)
+		)
+		AND NOT (o.status = 'Mentors Accepted' OR o.status = 'Mentors Reviewed')
+		AND (
+			(LOWER(o.od_type) != 'internal' AND (o.status LIKE 'HOD%' OR o.status LIKE 'Principal%'))
+			OR
+			(LOWER(o.od_type) = 'internal' AND NOT EXISTS (SELECT 1 FROM od_team_members tm WHERE tm.od_id = o.id AND tm.mentor_status = 'Pending') AND (o.status LIKE 'HOD%' OR o.status LIKE 'Principal%'))
+		)
 	`
 	args := []interface{}{dept}
 
@@ -495,9 +510,10 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 			o.id LIKE ? OR o.register_no LIKE ? OR o.student_name LIKE ? OR
 			o.year LIKE ? OR o.department LIKE ? OR o.section LIKE ? OR
 			o.od_type LIKE ? OR o.purpose LIKE ? OR o.college_name LIKE ? OR
-			o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ? OR t.mentor LIKE ?
+			o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ? OR 
+			t.mentor LIKE ? OR o.status LIKE ?
 		)`
-		for i := 0; i < 13; i++ {
+		for i := 0; i < 14; i++ {
 			args = append(args, like)
 		}
 	}
@@ -508,13 +524,13 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if name != "" {
-		baseQuery += " AND o.student_name LIKE ?"
-		args = append(args, "%"+name+"%")
+		baseQuery += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
+		args = append(args, "%"+name+"%", "%"+name+"%")
 	}
 
 	if regNo != "" {
-		baseQuery += " AND o.register_no LIKE ?"
-		args = append(args, "%"+regNo+"%")
+		baseQuery += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
+		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
 	}
 
 	if startDate != "" {
@@ -528,7 +544,7 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if odType != "" {
-		baseQuery += " AND o.od_type = ?"
+		baseQuery += " AND LOWER(o.od_type) = LOWER(?)"
 		args = append(args, odType)
 	}
 
