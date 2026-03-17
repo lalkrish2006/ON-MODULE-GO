@@ -102,8 +102,8 @@ func JADashboard(w http.ResponseWriter, r *http.Request) {
 	// Query Construction
 	// Using ODColumns from helpers.go which contains "o.id, o.register_no..."
 	// Added 'AS o' for explicit aliasing
-	query := `SELECT DISTINCT ` + ODColumns + ` FROM od_applications AS o 
-		LEFT JOIN od_team_members t ON o.id = t.od_id
+	query := `SELECT t.member_name, t.member_regno, t.member_year, t.member_section, ` + ODColumns + ` FROM od_team_members t 
+		JOIN od_applications o ON o.id = t.od_id
 		WHERE ((o.od_type = 'internal' AND o.status = 'HOD Accepted') 
 		   OR (o.od_type = 'external' AND o.status = 'Principal Accepted'))`
 	
@@ -179,15 +179,25 @@ func JADashboard(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var od models.ODApplication
+		var mName, mReg, mSection string
+		var mYear int
 		err := rows.Scan(
+			&mName, &mReg, &mYear, &mSection,
 			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
 			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
 			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
 			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
 		)
 		if err != nil {
+			log.Println("Scan Error:", err)
 			continue
 		}
+
+		// Use member specific data
+		od.StudentName = mName
+		od.RegisterNo = mReg
+		od.Year = strconv.Itoa(mYear)
+		od.Section = mSection
 
 		// Fetch Team
 		tmQuery := "SELECT id, od_id, member_name, member_regno, member_department, member_year, member_section, mentor, mentor_status FROM od_team_members WHERE od_id = ?"
@@ -399,8 +409,8 @@ func DownloadJAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	class := r.URL.Query().Get("class")
 	yearFilter := r.URL.Query().Get("year")
 
-	query := `SELECT DISTINCT ` + ODColumns + ` FROM od_applications o 
-		LEFT JOIN od_team_members t ON o.id = t.od_id
+	query := `SELECT t.member_name, t.member_regno, t.member_year, t.member_section, ` + ODColumns + ` FROM od_team_members t 
+		JOIN od_applications o ON o.id = t.od_id
 		WHERE ((o.od_type = 'internal' AND o.status = 'HOD Accepted') 
 		   OR (o.od_type = 'external' AND o.status = 'Principal Accepted'))`
 	
@@ -487,12 +497,21 @@ func DownloadJAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	pdf.SetFont("Arial", "", 9)
 	for rows.Next() {
 		var od models.ODApplication
+		var mName, mReg, mSection string
+		var mYear int
 		rows.Scan(
+			&mName, &mReg, &mYear, &mSection,
 			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
 			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
 			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
 			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
 		)
+
+		// Use member specific data
+		od.StudentName = mName
+		od.RegisterNo = mReg
+		od.Year = strconv.Itoa(mYear)
+		od.Section = mSection
 
 		dateStr := "-"
 		formatDate := func(ns sql.NullString) string {

@@ -84,26 +84,24 @@ func CADashboard(w http.ResponseWriter, r *http.Request) {
 	
 	// Fixed: Added alias 'o' to table to match ODColumns (o.id, etc.)
 	// Added: Filter by Class (Year, Dept, Section)
-	query := `SELECT DISTINCT ` + ODColumns + ` FROM od_applications o 
-		LEFT JOIN od_team_members t ON o.id = t.od_id
+	query := `SELECT t.member_name, t.member_regno, t.member_year, t.member_section, ` + ODColumns + ` FROM od_team_members t 
+		JOIN od_applications o ON o.id = t.od_id
 		WHERE ((o.od_type = 'internal' AND o.status = 'HOD Accepted') 
 		   OR (o.od_type = 'external' AND o.status = 'Principal Accepted'))
-		AND o.year = ? AND o.department = ? AND o.section = ?`
+		AND t.member_year = ? AND t.member_department = ? AND t.member_section = ?`
 	
 	var args []interface{}
 	args = append(args, caYear, caDept, caSection)
 
 	if search != "" {
 		like := "%" + search + "%"
-		// Search across multiple fields as per PHP
 		query += ` AND (
-            o.id LIKE ? OR o.register_no LIKE ? OR o.student_name LIKE ? OR
-            o.year LIKE ? OR o.department LIKE ? OR o.section LIKE ? OR
+            o.id LIKE ? OR t.member_regno LIKE ? OR t.member_name LIKE ? OR
+            t.member_year LIKE ? OR t.member_department LIKE ? OR t.member_section LIKE ? OR
             o.od_type LIKE ? OR o.purpose LIKE ? OR o.college_name LIKE ? OR
-            o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ?
+            o.event_name LIKE ?
         )`
-		// Append args 12 times
-		for i := 0; i < 12; i++ {
+		for i := 0; i < 10; i++ {
 			args = append(args, like)
 		}
 	}
@@ -114,13 +112,13 @@ func CADashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if name != "" {
-		query += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
-		args = append(args, "%"+name+"%", "%"+name+"%")
+		query += " AND t.member_name LIKE ?"
+		args = append(args, "%"+name+"%")
 	}
 
 	if regNo != "" {
-		query += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
-		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
+		query += " AND t.member_regno LIKE ?"
+		args = append(args, "%"+regNo+"%")
 	}
 
 	if startDate != "" {
@@ -139,12 +137,12 @@ func CADashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if class != "" {
-		query += " AND o.section = ?"
+		query += " AND t.member_section = ?"
 		args = append(args, class)
 	}
 
 	if yearFilter != "" {
-		query += " AND o.year = ?"
+		query += " AND t.member_year = ?"
 		args = append(args, yearFilter)
 	}
 
@@ -185,15 +183,25 @@ func CADashboard(w http.ResponseWriter, r *http.Request) {
 	
 	for rows.Next() {
 		var od models.ODApplication
+		var mName, mReg, mSection string
+		var mYear int
 		err := rows.Scan(
+			&mName, &mReg, &mYear, &mSection,
 			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
 			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
 			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
 			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
 		)
 		if err != nil {
+			log.Println("Scan Error:", err)
 			continue
 		}
+
+		// Use member specific data for display
+		od.StudentName = mName
+		od.RegisterNo = mReg
+		od.Year = strconv.Itoa(mYear)
+		od.Section = mSection
 
 		// Fetch Team
 		tmQuery := "SELECT id, od_id, member_name, member_regno, member_department, member_year, member_section, mentor, mentor_status FROM od_team_members WHERE od_id = ?"
@@ -354,23 +362,23 @@ func DownloadCAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	class := r.URL.Query().Get("class")
 	yearFilter := r.URL.Query().Get("year")
 
-	query := `SELECT DISTINCT ` + ODColumns + ` FROM od_applications o 
-		LEFT JOIN od_team_members t ON o.id = t.od_id
+	query := `SELECT t.member_name, t.member_regno, t.member_year, t.member_section, ` + ODColumns + ` FROM od_team_members t 
+		JOIN od_applications o ON o.id = t.od_id
 		WHERE ((o.od_type = 'internal' AND o.status = 'HOD Accepted') 
 		   OR (o.od_type = 'external' AND o.status = 'Principal Accepted'))
-		AND o.year = ? AND o.department = ? AND o.section = ?`
+		AND t.member_year = ? AND t.member_department = ? AND t.member_section = ?`
 	
 	args := []interface{}{caYear, caDept, caSection}
 
 	if search != "" {
 		like := "%" + search + "%"
 		query += ` AND (
-            o.id LIKE ? OR o.register_no LIKE ? OR o.student_name LIKE ? OR
-            o.year LIKE ? OR o.department LIKE ? OR o.section LIKE ? OR
+            o.id LIKE ? OR t.member_regno LIKE ? OR t.member_name LIKE ? OR
+            t.member_year LIKE ? OR t.member_department LIKE ? OR t.member_section LIKE ? OR
             o.od_type LIKE ? OR o.purpose LIKE ? OR o.college_name LIKE ? OR
-            o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ?
+            o.event_name LIKE ?
         )`
-		for i := 0; i < 12; i++ {
+		for i := 0; i < 10; i++ {
 			args = append(args, like)
 		}
 	}
@@ -381,13 +389,13 @@ func DownloadCAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if name != "" {
-		query += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
-		args = append(args, "%"+name+"%", "%"+name+"%")
+		query += " AND t.member_name LIKE ?"
+		args = append(args, "%"+name+"%")
 	}
 
 	if regNo != "" {
-		query += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
-		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
+		query += " AND t.member_regno LIKE ?"
+		args = append(args, "%"+regNo+"%")
 	}
 
 	if startDate != "" {
@@ -406,12 +414,12 @@ func DownloadCAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if class != "" {
-		query += " AND o.section = ?"
+		query += " AND t.member_section = ?"
 		args = append(args, class)
 	}
 
 	if yearFilter != "" {
-		query += " AND o.year = ?"
+		query += " AND t.member_year = ?"
 		args = append(args, yearFilter)
 	}
 
@@ -443,12 +451,21 @@ func DownloadCAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	pdf.SetFont("Arial", "", 9)
 	for rows.Next() {
 		var od models.ODApplication
+		var mName, mReg, mSection string
+		var mYear int
 		rows.Scan(
+			&mName, &mReg, &mYear, &mSection,
 			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
 			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
 			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
 			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
 		)
+
+		// Use member specific data
+		od.StudentName = mName
+		od.RegisterNo = mReg
+		od.Year = strconv.Itoa(mYear)
+		od.Section = mSection
 
 		dateStr := "-"
 		formatDate := func(ns sql.NullString) string {
