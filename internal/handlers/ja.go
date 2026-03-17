@@ -481,11 +481,11 @@ func DownloadJAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 	pdf := gofpdf.New("L", "mm", "A4", "")
 	pdf.AddPage()
 	pdf.SetFont("Arial", "B", 16)
-	pdf.Cell(280, 10, "JA OD History Report")
+	pdf.Cell(275, 10, "JA OD History Report")
 	pdf.Ln(12)
 
 	headers := []string{"ID", "Name", "Reg No", "Year", "Type", "Dates", "Purpose", "Status"}
-	widths := []float64{15, 45, 30, 15, 20, 50, 70, 35}
+	widths := []float64{15, 40, 25, 10, 20, 45, 90, 30}
 
 	pdf.SetFont("Arial", "B", 10)
 	pdf.SetFillColor(200, 200, 200)
@@ -538,7 +538,7 @@ func DownloadJAHistoryPDF(w http.ResponseWriter, r *http.Request) {
 		rowHeight := float64(lineCount) * cellHeight
 		if rowHeight < 10 { rowHeight = 10 }
 
-		if pdf.GetY()+rowHeight > 275 {
+		if pdf.GetY()+rowHeight > 180 {
 			pdf.AddPage()
 			pdf.SetFont("Arial", "B", 10)
 			pdf.SetFillColor(200, 200, 200)
