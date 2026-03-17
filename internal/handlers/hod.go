@@ -622,11 +622,25 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 		lines := pdf.SplitLines([]byte(od.Purpose), purposeWidth)
 		lineCount := len(lines)
 		if lineCount == 0 { lineCount = 1 }
-		rowHeight := float64(lineCount) * 5.0 // 5.0 is standard line height for font size 9
+		cellHeight := 5.0 // Single line height
+		rowHeight := float64(lineCount) * cellHeight
 		if rowHeight < 10 { rowHeight = 10 } // Minimum height
 
+		// Page break handling
+		if pdf.GetY()+rowHeight > 275 {
+			pdf.AddPage()
+			// Redraw headers on new page
+			pdf.SetFont("Arial", "B", 10)
+			pdf.SetFillColor(200, 200, 200)
+			for i, h := range headers {
+				pdf.CellFormat(widths[i], 10, h, "1", 0, "C", true, 0, "")
+			}
+			pdf.Ln(-1)
+			pdf.SetFont("Arial", "", 9)
+		}
+
 		// Start Row
-		_, curY := pdf.GetXY()
+		curX, curY := pdf.GetXY()
 		
 		// ID
 		pdf.CellFormat(widths[0], rowHeight, strconv.Itoa(od.ID), "1", 0, "C", false, 0, "")
@@ -642,15 +656,16 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 		pdf.CellFormat(widths[5], rowHeight, dateStr, "1", 0, "C", false, 0, "")
 		
 		// Purpose (MultiCell)
-		x, y := pdf.GetXY()
-		pdf.MultiCell(widths[6], 5, od.Purpose, "1", "L", false)
-		pdf.SetXY(x+widths[6], y) // Move to next column position
+		pdf.MultiCell(widths[6], cellHeight, od.Purpose, "1", "L", false)
+		
+		// Move to the right of Purpose and back to the top of the row for Status
+		pdf.SetXY(curX+widths[0]+widths[1]+widths[2]+widths[3]+widths[4]+widths[5]+widths[6], curY)
 		
 		// Status
 		pdf.CellFormat(widths[7], rowHeight, od.Status, "1", 0, "C", false, 0, "")
 		
-		pdf.Ln(rowHeight)
-		pdf.SetY(curY + rowHeight) // Ensure next row starts at the correct position
+		// Reset position to the start of the next row
+		pdf.SetXY(curX, curY+rowHeight)
 	}
 
 	w.Header().Set("Content-Type", "application/pdf")

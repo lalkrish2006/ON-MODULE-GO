@@ -57,7 +57,10 @@ func main() {
 
 	// New Dashboards
 	mux.HandleFunc("/ca/dashboard", handlers.CADashboard)
+	mux.HandleFunc("/ca/download-pdf", handlers.DownloadCAHistoryPDF)
 	mux.HandleFunc("/ja/dashboard", handlers.JADashboard)
+	mux.HandleFunc("/ja/download-pdf", handlers.DownloadJAHistoryPDF)
+	mux.HandleFunc("/mentor/download-pdf", handlers.DownloadMentorHistoryPDF)
 	
 	// Admin Routes
 	mux.HandleFunc("/admin/dashboard", handlers.AdminDashboard)

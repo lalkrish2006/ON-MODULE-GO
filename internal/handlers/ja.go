@@ -5,11 +5,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/jung-kurt/gofpdf"
 	"log"
 	"net/http"
 	"od-system/internal/database"
 	"od-system/internal/models"
 	"od-system/internal/services"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +21,13 @@ type JADashboardData struct {
 	Applications []JADashboardOD
 	Search       string
 	MonthFilter  string
+	Name         string
+	RegNo        string
+	StartDate    string
+	EndDate      string
+	ODType       string
+	Class        string
+	YearFilter   string
 	FlashSuccess string
 }
 
@@ -58,6 +67,13 @@ func JADashboard(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 	month := r.URL.Query().Get("month")
+	name := r.URL.Query().Get("name")
+	regNo := r.URL.Query().Get("reg_no")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	odType := r.URL.Query().Get("od_type")
+	class := r.URL.Query().Get("class")
+	yearFilter := r.URL.Query().Get("year")
 	export := r.URL.Query().Get("export")
 
 	// Helper functions (inline)
@@ -107,8 +123,43 @@ func JADashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if month != "" {
-		query += " AND DATE_FORMAT(o.from_date, '%Y-%m') = ?"
-		args = append(args, month)
+		query += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		args = append(args, month, month)
+	}
+
+	if name != "" {
+		query += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
+		args = append(args, "%"+name+"%", "%"+name+"%")
+	}
+
+	if regNo != "" {
+		query += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
+		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
+	}
+
+	if startDate != "" {
+		query += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		args = append(args, startDate, startDate)
+	}
+
+	if endDate != "" {
+		query += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		args = append(args, endDate, endDate)
+	}
+
+	if odType != "" {
+		query += " AND LOWER(o.od_type) = LOWER(?)"
+		args = append(args, odType)
+	}
+
+	if class != "" {
+		query += " AND o.section = ?"
+		args = append(args, class)
+	}
+
+	if yearFilter != "" {
+		query += " AND o.year = ?"
+		args = append(args, yearFilter)
 	}
 
 	query += " ORDER BY o.id DESC"
@@ -312,8 +363,187 @@ func JADashboard(w http.ResponseWriter, r *http.Request) {
 		Applications: apps,
 		Search:       search,
 		MonthFilter:  month,
+		Name:         name,
+		RegNo:        regNo,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		ODType:       odType,
+		Class:        class,
+		YearFilter:   yearFilter,
 		FlashSuccess: "",
 	}
 
 	RenderTemplate(w, "templates/ja_dashboard.html", data)
+}
+
+// DownloadJAHistoryPDF handler
+func DownloadJAHistoryPDF(w http.ResponseWriter, r *http.Request) {
+	session := services.GetSession(r)
+	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	role, _ := session.Values["role"].(string)
+	if role != "ja" && role != "admin" {
+		http.Redirect(w, r, "/login?error=unauthorized", http.StatusSeeOther)
+		return
+	}
+
+	search := r.URL.Query().Get("search")
+	month := r.URL.Query().Get("month")
+	name := r.URL.Query().Get("name")
+	regNo := r.URL.Query().Get("reg_no")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	odType := r.URL.Query().Get("od_type")
+	class := r.URL.Query().Get("class")
+	yearFilter := r.URL.Query().Get("year")
+
+	query := `SELECT DISTINCT ` + ODColumns + ` FROM od_applications o 
+		LEFT JOIN od_team_members t ON o.id = t.od_id
+		WHERE ((o.od_type = 'internal' AND o.status = 'HOD Accepted') 
+		   OR (o.od_type = 'external' AND o.status = 'Principal Accepted'))`
+	
+	var args []interface{}
+
+	if search != "" {
+		like := "%" + search + "%"
+		query += ` AND (
+            o.id LIKE ? OR o.register_no LIKE ? OR o.student_name LIKE ? OR
+            o.year LIKE ? OR o.department LIKE ? OR o.section LIKE ? OR
+            o.od_type LIKE ? OR o.purpose LIKE ? OR o.college_name LIKE ? OR
+            o.event_name LIKE ? OR t.member_name LIKE ? OR t.member_regno LIKE ?
+        )`
+		for i := 0; i < 12; i++ {
+			args = append(args, like)
+		}
+	}
+
+	if month != "" {
+		query += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		args = append(args, month, month)
+	}
+
+	if name != "" {
+		query += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
+		args = append(args, "%"+name+"%", "%"+name+"%")
+	}
+
+	if regNo != "" {
+		query += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
+		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
+	}
+
+	if startDate != "" {
+		query += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		args = append(args, startDate, startDate)
+	}
+
+	if endDate != "" {
+		query += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		args = append(args, endDate, endDate)
+	}
+
+	if odType != "" {
+		query += " AND LOWER(o.od_type) = LOWER(?)"
+		args = append(args, odType)
+	}
+
+	if class != "" {
+		query += " AND o.section = ?"
+		args = append(args, class)
+	}
+
+	if yearFilter != "" {
+		query += " AND o.year = ?"
+		args = append(args, yearFilter)
+	}
+
+	query += " ORDER BY o.id DESC"
+
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		http.Error(w, "Database error", 500)
+		return
+	}
+	defer rows.Close()
+
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 16)
+	pdf.Cell(280, 10, "JA OD History Report")
+	pdf.Ln(12)
+
+	headers := []string{"ID", "Name", "Reg No", "Year", "Type", "Dates", "Purpose", "Status"}
+	widths := []float64{15, 45, 30, 15, 20, 50, 70, 35}
+
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetFillColor(200, 200, 200)
+	for i, h := range headers {
+		pdf.CellFormat(widths[i], 10, h, "1", 0, "C", true, 0, "")
+	}
+	pdf.Ln(-1)
+
+	pdf.SetFont("Arial", "", 9)
+	for rows.Next() {
+		var od models.ODApplication
+		rows.Scan(
+			&od.ID, &od.RegisterNo, &od.StudentName, &od.Year, &od.Department, &od.Section,
+			&od.ODType, &od.Purpose, &od.CollegeName, &od.EventName, &od.FromDate, &od.ToDate,
+			&od.ODDate, &od.FromTime, &od.ToTime, &od.Status, &od.RequestBonafide,
+			&od.LabRequired, &od.LabName, &od.SystemRequired, &od.CreatedAt,
+		)
+
+		dateStr := "-"
+		formatDate := func(ns sql.NullString) string {
+			if !ns.Valid || ns.String == "0000-00-00" { return "-" }
+			t, _ := time.Parse("2006-01-02", ns.String[:10])
+			return t.Format("02-01-06")
+		}
+
+		if strings.ToLower(od.ODType) == "internal" {
+			if od.ODDate.Valid && od.ODDate.String != "0000-00-00" {
+				dateStr = formatDate(od.ODDate)
+			} else {
+				dateStr = formatDate(od.FromDate) + " to " + formatDate(od.ToDate)
+			}
+		} else {
+			dateStr = formatDate(od.FromDate) + " to " + formatDate(od.ToDate)
+		}
+
+		purposeWidth := widths[6]
+		lines := pdf.SplitLines([]byte(od.Purpose), purposeWidth)
+		lineCount := len(lines)
+		if lineCount == 0 { lineCount = 1 }
+		cellHeight := 5.0
+		rowHeight := float64(lineCount) * cellHeight
+		if rowHeight < 10 { rowHeight = 10 }
+
+		if pdf.GetY()+rowHeight > 275 {
+			pdf.AddPage()
+			pdf.SetFont("Arial", "B", 10)
+			pdf.SetFillColor(200, 200, 200)
+			for i, h := range headers {
+				pdf.CellFormat(widths[i], 10, h, "1", 0, "C", true, 0, "")
+			}
+			pdf.Ln(-1)
+			pdf.SetFont("Arial", "", 9)
+		}
+
+		curX, curY := pdf.GetXY()
+		pdf.CellFormat(widths[0], rowHeight, strconv.Itoa(od.ID), "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[1], rowHeight, od.StudentName, "1", 0, "L", false, 0, "")
+		pdf.CellFormat(widths[2], rowHeight, od.RegisterNo, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[3], rowHeight, od.Year, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[4], rowHeight, od.ODType, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[5], rowHeight, dateStr, "1", 0, "C", false, 0, "")
+		pdf.MultiCell(widths[6], cellHeight, od.Purpose, "1", "L", false)
+		pdf.SetXY(curX+widths[0]+widths[1]+widths[2]+widths[3]+widths[4]+widths[5]+widths[6], curY)
+		pdf.CellFormat(widths[7], rowHeight, od.Status, "1", 0, "C", false, 0, "")
+		pdf.SetXY(curX, curY+rowHeight)
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=ja_od_history.pdf")
+	pdf.Output(w)
 }

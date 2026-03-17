@@ -166,33 +166,68 @@
         
         <!-- Filter Section -->
         <div class="filter-section">
-            <form method="GET" action="/ja/dashboard" class="row g-3 align-items-end" id="filterForm">
-                <div class="col-md-5">
-                    <label class="form-label text-muted small fw-bold">Search</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" name="search" class="form-control border-start-0 bg-light" placeholder="Search ID, Name, Reg No..." value="{{.Search}}">
-                    </div>
+            <form method="GET" action="" id="filterForm" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold text-muted">Search All</label>
+                    <input type="text" class="form-control" name="search" placeholder="ID, Reg No, Name..." value="{{ .Search }}">
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label text-muted small fw-bold">Month</label>
-                    <input type="month" name="month" class="form-control bg-light" value="{{.MonthFilter}}">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">Student Name</label>
+                    <input type="text" class="form-control" name="name" value="{{ .Name }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">Reg No</label>
+                    <input type="text" class="form-control" name="reg_no" value="{{ .RegNo }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">Month</label>
+                    <input type="month" class="form-control" name="month" value="{{ .MonthFilter }}">
+                </div>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small fw-bold text-muted">Type</label>
+                    <select class="form-control" name="od_type">
+                        <option value="">All</option>
+                        <option value="internal" {{ if eq .ODType "internal" }}selected{{ end }}>Internal</option>
+                        <option value="external" {{ if eq .ODType "external" }}selected{{ end }}>External</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small fw-bold text-muted">Class</label>
+                    <select class="form-control" name="class">
+                        <option value="">All</option>
+                        <option value="A" {{ if eq .Class "A" }}selected{{ end }}>A</option>
+                        <option value="B" {{ if eq .Class "B" }}selected{{ end }}>B</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small fw-bold text-muted">Year</label>
+                    <select class="form-control" name="year">
+                        <option value="">All</option>
+                        <option value="1" {{ if eq .YearFilter "1" }}selected{{ end }}>1</option>
+                        <option value="2" {{ if eq .YearFilter "2" }}selected{{ end }}>2</option>
+                        <option value="3" {{ if eq .YearFilter "3" }}selected{{ end }}>3</option>
+                        <option value="4" {{ if eq .YearFilter "4" }}selected{{ end }}>4</option>
+                    </select>
                 </div>
                 
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">From Date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ .StartDate }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">To Date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ .EndDate }}">
+                </div>
+
                 <input type="hidden" name="export" id="exportValue" value="">
 
-                <div class="col-md-4 d-flex gap-2">
+                <div class="col-12 col-md-4 d-flex gap-2">
                     <button type="submit" id="filterBtn" class="btn btn-primary w-100 fw-medium" style="background-color: var(--primary-color); border: none;">
                         <i class="bi bi-funnel-fill me-1"></i> Filter
                     </button>
-                    <a href="/ja/dashboard" class="btn btn-light w-100 fw-medium border">
-                        <i class="bi bi-x-lg me-1"></i> Clear
-                    </a>
-                    {{if .Applications}}
-                    <button type="submit" id="downloadBtn" class="btn btn-success w-100 fw-medium">
-                        <i class="bi bi-download me-1"></i> CSV
-                    </button>
-                    {{end}}
+                    <button type="button" onclick="downloadPDF()" class="btn btn-danger w-100"><i class="bi bi-file-earmark-pdf-fill me-1"></i> PDF</button>
+                    <button type="submit" id="downloadBtn" class="btn btn-success w-100"><i class="bi bi-download me-1"></i> CSV</button>
+                    <a href="?" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg"></i></a>
                 </div>
             </form>
         </div>
@@ -366,6 +401,11 @@
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', () => { exportValueInput.value = 'csv'; });
             }
+        }
+        function downloadPDF() {
+            const form = document.getElementById('filterForm');
+            const urlParams = new URLSearchParams(new FormData(form));
+            window.location.href = '/ja/download-pdf?' + urlParams.toString();
         }
     </script>
 

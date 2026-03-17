@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/jung-kurt/gofpdf"
 	"log"
 	"net/http"
 	"od-system/internal/database"
@@ -16,11 +17,17 @@ import (
 
 // MentorDashboardData holds data for the mentor dashboard
 type MentorDashboardData struct {
-	User        map[string]interface{}
-	Rows        []MentorODRequest
-	Search      string
-	MonthFilter string
+	User         map[string]interface{}
+	Rows         []MentorODRequest
+	Search       string
+	MonthFilter  string
+	Name         string
+	RegNo        string
+	StartDate    string
+	EndDate      string
 	ODTypeFilter string
+	Class        string
+	YearFilter   string
 	FlashSuccess string
 }
 
@@ -57,6 +64,12 @@ func MentorDashboard(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	odTypeFilter := r.URL.Query().Get("od_type")
 	month := r.URL.Query().Get("month")
+	name := r.URL.Query().Get("name")
+	regNo := r.URL.Query().Get("reg_no")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	class := r.URL.Query().Get("class")
+	yearFilter := r.URL.Query().Get("year")
 
 	// PHP Logic: Single Query for all items
 	// SELECT t.*, o.* FROM od_team_members t LEFT JOIN od_applications o ON o.id = t.od_id WHERE t.mentor = ?
@@ -80,8 +93,38 @@ func MentorDashboard(w http.ResponseWriter, r *http.Request) {
 		args = append(args, odTypeFilter)
 	}
 	if month != "" {
-		query += " AND DATE_FORMAT(o.from_date, '%Y-%m') = ?"
-		args = append(args, month)
+		query += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		args = append(args, month, month)
+	}
+
+	if name != "" {
+		query += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
+		args = append(args, "%"+name+"%", "%"+name+"%")
+	}
+
+	if regNo != "" {
+		query += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
+		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
+	}
+
+	if startDate != "" {
+		query += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		args = append(args, startDate, startDate)
+	}
+
+	if endDate != "" {
+		query += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		args = append(args, endDate, endDate)
+	}
+
+	if class != "" {
+		query += " AND o.section = ?"
+		args = append(args, class)
+	}
+
+	if yearFilter != "" {
+		query += " AND o.year = ?"
+		args = append(args, yearFilter)
 	}
 
 	query += " ORDER BY t.od_id DESC, t.id ASC"
@@ -268,20 +311,19 @@ func MentorDashboard(w http.ResponseWriter, r *http.Request) {
 		"role": role,
 	}
 
-	data := struct {
-		User         map[string]interface{}
-		Rows         []MentorODRequest
-		Search       string
-		ODTypeFilter string
-		MonthFilter  string
-		FlashSuccess string
-	}{
+	data := MentorDashboardData{
 		User:         userMap,
 		Rows:         finalRows,
 		Search:       search,
-		ODTypeFilter: odTypeFilter,
 		MonthFilter:  month,
-		FlashSuccess: "", // Should take from session if exists
+		Name:         name,
+		RegNo:        regNo,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		ODTypeFilter: odTypeFilter,
+		Class:        class,
+		YearFilter:   yearFilter,
+		FlashSuccess: "",
 	}
 
 	RenderTemplate(w, "templates/mentor_dashboard.html", data)
@@ -386,6 +428,173 @@ func MentorAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/mentor/dashboard", http.StatusSeeOther)
+}
+
+// DownloadMentorHistoryPDF handler
+func DownloadMentorHistoryPDF(w http.ResponseWriter, r *http.Request) {
+	session := services.GetSession(r)
+	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	role, _ := session.Values["role"].(string)
+	if role != "mentor" && role != "admin" {
+		http.Redirect(w, r, "/login?error=unauthorized", http.StatusSeeOther)
+		return
+	}
+
+	mentorName, _ := session.Values["name"].(string)
+
+	search := r.URL.Query().Get("search")
+	odTypeFilter := r.URL.Query().Get("od_type")
+	month := r.URL.Query().Get("month")
+	name := r.URL.Query().Get("name")
+	regNo := r.URL.Query().Get("reg_no")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	class := r.URL.Query().Get("class")
+	yearFilter := r.URL.Query().Get("year")
+
+	query := `
+		SELECT 
+			t.id, t.od_id, t.member_name, t.member_regno, t.member_year, t.member_department, t.member_section, t.mentor_status,
+			o.id, o.od_type, o.purpose, o.college_name, o.event_name, o.from_date, o.to_date, o.od_date, o.from_time, o.to_time, o.status
+		FROM od_team_members t
+		LEFT JOIN od_applications o ON o.id = t.od_id
+		WHERE t.mentor = ?`
+	
+	args := []interface{}{mentorName}
+
+	if search != "" {
+		like := "%" + search + "%"
+		query += " AND (t.member_name LIKE ? OR t.member_regno LIKE ?)"
+		args = append(args, like, like)
+	}
+	if odTypeFilter != "" {
+		query += " AND o.od_type = ?"
+		args = append(args, odTypeFilter)
+	}
+	if month != "" {
+		query += " AND (DATE_FORMAT(o.from_date, '%Y-%m') = ? OR DATE_FORMAT(o.od_date, '%Y-%m') = ?)"
+		args = append(args, month, month)
+	}
+
+	if name != "" {
+		query += " AND (o.student_name LIKE ? OR t.member_name LIKE ?)"
+		args = append(args, "%"+name+"%", "%"+name+"%")
+	}
+
+	if regNo != "" {
+		query += " AND (o.register_no LIKE ? OR t.member_regno LIKE ?)"
+		args = append(args, "%"+regNo+"%", "%"+regNo+"%")
+	}
+
+	if startDate != "" {
+		query += " AND (o.from_date >= ? OR o.od_date >= ?)"
+		args = append(args, startDate, startDate)
+	}
+
+	if endDate != "" {
+		query += " AND (o.to_date <= ? OR o.od_date <= ?)"
+		args = append(args, endDate, endDate)
+	}
+
+	if class != "" {
+		query += " AND o.section = ?"
+		args = append(args, class)
+	}
+
+	if yearFilter != "" {
+		query += " AND o.year = ?"
+		args = append(args, yearFilter)
+	}
+	query += " ORDER BY t.od_id DESC, t.id ASC"
+
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		http.Error(w, "Database error", 500)
+		return
+	}
+	defer rows.Close()
+
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 16)
+	pdf.Cell(280, 10, "Mentor OD History Report - " + mentorName)
+	pdf.Ln(12)
+
+	headers := []string{"ID", "Name", "Reg No", "Year", "Type", "Dates", "Purpose", "Status"}
+	widths := []float64{15, 45, 30, 15, 20, 50, 70, 35}
+
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetFillColor(200, 200, 200)
+	for i, h := range headers {
+		pdf.CellFormat(widths[i], 10, h, "1", 0, "C", true, 0, "")
+	}
+	pdf.Ln(-1)
+
+	pdf.SetFont("Arial", "", 9)
+	for rows.Next() {
+		var m models.ODTeamMember
+		var o models.ODApplication
+		var fromTime, toTime interface{}
+		rows.Scan(
+			&m.ID, &m.ODID, &m.MemberName, &m.MemberRegNo, &m.MemberYear, &m.MemberDepartment, &m.MemberSection, &m.MentorStatus,
+			&o.ID, &o.ODType, &o.Purpose, &o.CollegeName, &o.EventName, &o.FromDate, &o.ToDate, &o.ODDate, &fromTime, &toTime, &o.Status,
+		)
+
+		dateStr := "-"
+		formatDate := func(ns sql.NullString) string {
+			if !ns.Valid || ns.String == "0000-00-00" { return "-" }
+			t, _ := time.Parse("2006-01-02", ns.String[:10])
+			return t.Format("02-01-06")
+		}
+
+		if strings.ToLower(o.ODType) == "internal" {
+			if o.ODDate.Valid && o.ODDate.String != "0000-00-00" {
+				dateStr = formatDate(o.ODDate)
+			} else {
+				dateStr = formatDate(o.FromDate) + " to " + formatDate(o.ToDate)
+			}
+		} else {
+			dateStr = formatDate(o.FromDate) + " to " + formatDate(o.ToDate)
+		}
+
+		purposeWidth := widths[6]
+		lines := pdf.SplitLines([]byte(o.Purpose), purposeWidth)
+		lineCount := len(lines)
+		if lineCount == 0 { lineCount = 1 }
+		cellHeight := 5.0
+		rowHeight := float64(lineCount) * cellHeight
+		if rowHeight < 10 { rowHeight = 10 }
+
+		if pdf.GetY()+rowHeight > 275 {
+			pdf.AddPage()
+			pdf.SetFont("Arial", "B", 10)
+			pdf.SetFillColor(200, 200, 200)
+			for i, h := range headers {
+				pdf.CellFormat(widths[i], 10, h, "1", 0, "C", true, 0, "")
+			}
+			pdf.Ln(-1)
+			pdf.SetFont("Arial", "", 9)
+		}
+
+		curX, curY := pdf.GetXY()
+		pdf.CellFormat(widths[0], rowHeight, strconv.Itoa(o.ID), "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[1], rowHeight, m.MemberName, "1", 0, "L", false, 0, "")
+		pdf.CellFormat(widths[2], rowHeight, m.MemberRegNo, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[3], rowHeight, m.MemberYear, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[4], rowHeight, o.ODType, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(widths[5], rowHeight, dateStr, "1", 0, "C", false, 0, "")
+		pdf.MultiCell(widths[6], cellHeight, o.Purpose, "1", "L", false)
+		pdf.SetXY(curX+widths[0]+widths[1]+widths[2]+widths[3]+widths[4]+widths[5]+widths[6], curY)
+		pdf.CellFormat(widths[7], rowHeight, m.MentorStatus.String, "1", 0, "C", false, 0, "")
+		pdf.SetXY(curX, curY+rowHeight)
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=mentor_od_history.pdf")
+	pdf.Output(w)
 }
 
 // Function parity note: check_all_mentors_accepted in PHP checks:

@@ -314,7 +314,7 @@
             <div class="d-flex align-items-center">
                 <div class="profile-expand-wrapper">
                     <div class="profile-initial">
-                        {{ printf "%.1s" .User.name }}
+                        {{ if .User.name }}{{ slice .User.name 0 1 }}{{ else }}M{{ end }}
                     </div>
                     <div class="profile-full-name">
                         {{ .User.name }}
@@ -327,30 +327,65 @@
         </header>
 
         <div class="filter-bar">
-            <form method="GET" action="" class="row g-3 align-items-end">
-                <div class="col-12 col-md-4">
-                    <label for="search" class="form-label fw-semibold small mb-1">Search by Name / Reg No</label>
-                    <input type="text" class="form-control form-control-sm" id="search" name="search"
-                        placeholder="Search..." value="{{ .Search }}">
+            <form method="GET" action="" id="filterForm" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold text-muted">Search All</label>
+                    <input type="text" class="form-control" name="search" placeholder="Name, Reg No..." value="{{ .Search }}">
                 </div>
                 <div class="col-6 col-md-2">
-                    <label for="od_type" class="form-label fw-semibold small mb-1">Type</label>
-                    <select class="form-select form-select-sm" id="od_type" name="od_type">
+                    <label class="form-label small fw-bold text-muted">Student Name</label>
+                    <input type="text" class="form-control" name="name" value="{{ .Name }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">Reg No</label>
+                    <input type="text" class="form-control" name="reg_no" value="{{ .RegNo }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">Month</label>
+                    <input type="month" class="form-control" name="month" value="{{ .MonthFilter }}">
+                </div>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small fw-bold text-muted">Type</label>
+                    <select class="form-control" name="od_type">
                         <option value="">All</option>
                         <option value="internal" {{ if eq .ODTypeFilter "internal" }}selected{{ end }}>Internal</option>
                         <option value="external" {{ if eq .ODTypeFilter "external" }}selected{{ end }}>External</option>
                     </select>
                 </div>
-                <div class="col-6 col-md-3">
-                    <label for="month" class="form-label fw-semibold small mb-1">Month</label>
-                    <input type="month" class="form-control form-control-sm" id="month" name="month"
-                        value="{{ .MonthFilter }}">
+                <div class="col-6 col-md-1">
+                    <label class="form-label small fw-bold text-muted">Class</label>
+                    <select class="form-control" name="class">
+                        <option value="">All</option>
+                        <option value="A" {{ if eq .Class "A" }}selected{{ end }}>A</option>
+                        <option value="B" {{ if eq .Class "B" }}selected{{ end }}>B</option>
+                    </select>
                 </div>
-                <div class="col-12 col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1"><i
-                            class="bi bi-funnel-fill me-1"></i> Filter</button>
-                    <a href="?" class="btn btn-outline-secondary btn-sm flex-grow-1"><i class="bi bi-x-lg me-1"></i>
-                        Clear</a>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small fw-bold text-muted">Year</label>
+                    <select class="form-control" name="year">
+                        <option value="">All</option>
+                        <option value="1" {{ if eq .YearFilter "1" }}selected{{ end }}>1</option>
+                        <option value="2" {{ if eq .YearFilter "2" }}selected{{ end }}>2</option>
+                        <option value="3" {{ if eq .YearFilter "3" }}selected{{ end }}>3</option>
+                        <option value="4" {{ if eq .YearFilter "4" }}selected{{ end }}>4</option>
+                    </select>
+                </div>
+                
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">From Date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ .StartDate }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted">To Date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ .EndDate }}">
+                </div>
+
+                <div class="col-12 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-medium">
+                        <i class="bi bi-funnel-fill me-1"></i> Filter
+                    </button>
+                    <button type="button" onclick="downloadPDF()" class="btn btn-danger w-100"><i class="bi bi-file-earmark-pdf-fill me-1"></i> PDF</button>
+                    <a href="?" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg"></i></a>
                 </div>
             </form>
         </div>
@@ -558,6 +593,11 @@
                 document.getElementById('purposeModalBody').innerHTML = `<div class="mb-3"><strong>Purpose:</strong><div class="text-dark border p-2 rounded bg-light" style="white-space: pre-wrap;">${purpose ? purpose : '—'}</div></div><div class="mb-2"><strong>Event Name:</strong> <span class="text-dark">${event ? event : '—'}</span></div><div><strong>College Name:</strong> <span class="text-dark">${college ? college : '—'}</span></div>`;
             });
         });
+        function downloadPDF() {
+            const form = document.getElementById('filterForm');
+            const urlParams = new URLSearchParams(new FormData(form));
+            window.location.href = '/mentor/download-pdf?' + urlParams.toString();
+        }
     </script>
 </body>
 
