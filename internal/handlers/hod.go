@@ -617,15 +617,40 @@ func DownloadHODHistoryPDF(w http.ResponseWriter, r *http.Request) {
 			dateStr = formatDate(od.FromDate) + " to " + formatDate(od.ToDate)
 		}
 
-		pdf.CellFormat(widths[0], 10, strconv.Itoa(od.ID), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[1], 10, od.StudentName, "1", 0, "L", false, 0, "")
-		pdf.CellFormat(widths[2], 10, od.RegisterNo, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[3], 10, od.Year, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[4], 10, od.ODType, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[5], 10, dateStr, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(widths[6], 10, od.Purpose, "1", 0, "L", false, 0, "")
-		pdf.CellFormat(widths[7], 10, od.Status, "1", 0, "C", false, 0, "")
-		pdf.Ln(-1)
+		// Calculate dynamic row height based on MultiCell for Purpose
+		purposeWidth := widths[6]
+		lines := pdf.SplitLines([]byte(od.Purpose), purposeWidth)
+		lineCount := len(lines)
+		if lineCount == 0 { lineCount = 1 }
+		rowHeight := float64(lineCount) * 5.0 // 5.0 is standard line height for font size 9
+		if rowHeight < 10 { rowHeight = 10 } // Minimum height
+
+		// Start Row
+		_, curY := pdf.GetXY()
+		
+		// ID
+		pdf.CellFormat(widths[0], rowHeight, strconv.Itoa(od.ID), "1", 0, "C", false, 0, "")
+		// Name
+		pdf.CellFormat(widths[1], rowHeight, od.StudentName, "1", 0, "L", false, 0, "")
+		// Reg No
+		pdf.CellFormat(widths[2], rowHeight, od.RegisterNo, "1", 0, "C", false, 0, "")
+		// Year
+		pdf.CellFormat(widths[3], rowHeight, od.Year, "1", 0, "C", false, 0, "")
+		// Type
+		pdf.CellFormat(widths[4], rowHeight, od.ODType, "1", 0, "C", false, 0, "")
+		// Dates
+		pdf.CellFormat(widths[5], rowHeight, dateStr, "1", 0, "C", false, 0, "")
+		
+		// Purpose (MultiCell)
+		x, y := pdf.GetXY()
+		pdf.MultiCell(widths[6], 5, od.Purpose, "1", "L", false)
+		pdf.SetXY(x+widths[6], y) // Move to next column position
+		
+		// Status
+		pdf.CellFormat(widths[7], rowHeight, od.Status, "1", 0, "C", false, 0, "")
+		
+		pdf.Ln(rowHeight)
+		pdf.SetY(curY + rowHeight) // Ensure next row starts at the correct position
 	}
 
 	w.Header().Set("Content-Type", "application/pdf")
